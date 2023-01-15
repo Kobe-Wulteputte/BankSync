@@ -14,6 +14,8 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<RequisitionService, RequisitionService>();
         services.AddTransient<AccountService, AccountService>();
         services.AddTransient<EndUserAgreementService, EndUserAgreementService>();
+        services.AddTransient<WorkbookService, WorkbookService>();
+        services.AddTransient<ExpenseService, ExpenseService>();
         services.AddNordigenDotNet(ctx.Configuration);
     }).ConfigureLogging((context, cfg) =>
     {
