@@ -15,9 +15,11 @@ public class RequisitionService
         _nordigenClient = nordigenClient;
     }
 
-    public async Task<Requisition> New(string institutionId)
+    public async Task<Requisition> New(string institutionId, string? userName)
     {
-        return await _nordigenClient.Requisitions.Post(new RequisitionCreation(new Uri("http://localhost"), institutionId));
+        var creation = new RequisitionCreation(new Uri("http://localhost"), institutionId);
+        creation.Reference = userName;
+        return await _nordigenClient.Requisitions.Post(creation);
     }
 
     public IAsyncEnumerable<Requisition> GetAll()
