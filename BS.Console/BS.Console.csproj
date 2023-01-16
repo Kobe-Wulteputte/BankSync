@@ -5,7 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>dotnet-WorkerService1-E5CE90F1-E481-41AF-9BC9-2DCE350E8F92</UserSecretsId>
-        <RootNamespace>WorkerService1</RootNamespace>
+        <RootNamespace>BS.Console</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
