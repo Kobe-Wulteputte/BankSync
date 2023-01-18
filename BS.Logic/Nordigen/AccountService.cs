@@ -24,4 +24,9 @@ public class AccountService
         Transactions transactions = await _nordigenClient.Accounts.GetTransactions(accountId, new Interval(past, now));
         return transactions.Booked;
     }
+
+    public async Task<Account> Get(Guid accountGuid)
+    {
+        return await _nordigenClient.Accounts.Get(accountGuid);
+    }
 }

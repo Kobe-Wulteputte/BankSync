@@ -7,15 +7,15 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="ClosedXML" Version="0.100.3" />
-        <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
-        <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.1.1" />
+        <PackageReference Include="ClosedXML" Version="0.100.3"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.2"/>
+        <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.1.1"/>
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\BS.Data\BS.Data.csproj" />
+        <ProjectReference Include="..\BS.Data\BS.Data.csproj"/>
     </ItemGroup>
 
 </Project>

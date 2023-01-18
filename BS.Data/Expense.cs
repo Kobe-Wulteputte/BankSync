@@ -11,4 +11,5 @@ public class Expense
     public string Group { get; set; }
     public bool Reimbursed { get; set; }
     public string Description { get; set; }
+    public string Id { get; set; }
 }

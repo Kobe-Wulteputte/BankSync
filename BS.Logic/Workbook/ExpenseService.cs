@@ -5,11 +5,11 @@ namespace BS.Logic.Workbook;
 
 public class ExpenseService
 {
-    public Expense CreateExpense(BookedTransaction transaction)
+    public Expense CreateExpense(BookedTransaction transaction, string accountName)
     {
         return new Expense
         {
-            Type = transaction.EntryReference ?? transaction.TransactionId,
+            Type = accountName,
             Account = transaction.DebtorAccount?.Iban ?? transaction.CreditorAccount?.Iban ?? "",
             Amount = transaction.TransactionAmount.Amount,
             Category = "",
@@ -17,7 +17,8 @@ public class ExpenseService
             Description = transaction.StructuredInformation ?? transaction.UnstructuredInformation,
             Group = "",
             Name = transaction.DebtorName ?? transaction.CreditorName ?? "",
-            Reimbursed = false
+            Reimbursed = false,
+            Id = transaction.EntryReference ?? transaction.TransactionId
         };
     }
 }

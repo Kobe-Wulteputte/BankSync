@@ -15,8 +15,8 @@ public class CategoryGuesserService
 
     public CategoryEnum? Guess(Expense expense)
     {
-        var account = GetAccountGuess(expense);
-        var mostLikelyCategory = account.MostLikelyCategory;
+        CategoryGuess account = GetAccountGuess(expense);
+        (CategoryEnum, double) mostLikelyCategory = account.MostLikelyCategory;
         return mostLikelyCategory.Item2 >= 0.5 ? mostLikelyCategory.Item1 : null;
     }
 
@@ -42,11 +42,11 @@ public class CategoryGuesserService
 
     private void ReadFiles()
     {
-        string fileNameIncome = @"C:/Users/kwlt/Desktop/incomes.json";
-        string jsonStringIncome = File.ReadAllText(fileNameIncome);
+        var fileNameIncome = @"C:/Users/kwlt/Desktop/incomes.json";
+        var jsonStringIncome = File.ReadAllText(fileNameIncome);
         _incomeAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringIncome);
-        string fileNameExpense = @"C:/Users/kwlt/Desktop/expenses.json";
-        string jsonStringExpense = File.ReadAllText(fileNameExpense);
+        var fileNameExpense = @"C:/Users/kwlt/Desktop/expenses.json";
+        var jsonStringExpense = File.ReadAllText(fileNameExpense);
         _expenseAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringExpense);
     }
 }

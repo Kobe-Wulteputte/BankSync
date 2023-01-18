@@ -16,17 +16,11 @@ public class CategoryGuess
     public CategoryGuess()
     {
         CategoryProbabilities = new Dictionary<CategoryEnum, double>();
-        foreach (var value in Enum.GetValues(typeof(CategoryEnum)))
-        {
-            CategoryProbabilities[(CategoryEnum)value] = 0;
-        }
+        foreach (var value in Enum.GetValues(typeof(CategoryEnum))) CategoryProbabilities[(CategoryEnum)value] = 0;
     }
 
     public void Combine(CategoryGuess guess)
     {
-        foreach (var category in CategoryProbabilities.Keys)
-        {
-            CategoryProbabilities[category] += guess.CategoryProbabilities[category];
-        }
+        foreach (CategoryEnum category in CategoryProbabilities.Keys) CategoryProbabilities[category] += guess.CategoryProbabilities[category];
     }
 }

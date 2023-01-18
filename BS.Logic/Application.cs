@@ -5,6 +5,7 @@ using BS.Logic.Workbook;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using VMelnalksnis.NordigenDotNet.Accounts;
 using VMelnalksnis.NordigenDotNet.Requisitions;
 
 namespace BS.Logic;
@@ -55,22 +56,24 @@ public class Application
 
         _workbookService.OpenWorkBook("C:/Users/kwlt/Desktop/ExpenseTest.xlsx");
 
-        // TODO: One list per year
         var transactions = new List<Expense>();
-        foreach (Guid account in accounts)
+        foreach (Guid accountGuid in accounts)
         {
-            var accountTransactions = await _accountService.GetTransactions(account);
+            var accountTransactions = await _accountService.GetTransactions(accountGuid);
+            Account account = await _accountService.Get(accountGuid);
             if (accountTransactions.Count == 0)
             {
-                _logger.LogWarning($"No transactions for account {account}");
+                _logger.LogWarning($"No transactions for account {account.InstitutionId} {account.Iban}");
                 continue;
             }
 
-            _logger.LogInformation($"Found {accountTransactions.Count} transactions for account {account}");
-            transactions.AddRange(accountTransactions.Select(x => _expenseService.CreateExpense(x)));
+            _logger.LogInformation($"Found {accountTransactions.Count} transactions for account {accountGuid}");
+            transactions.AddRange(accountTransactions.Select(x => _expenseService.CreateExpense(x, account.InstitutionId)));
         }
 
-        foreach (var transaction in transactions)
+        transactions = _workbookService.RemoveDuplicates(transactions).ToList();
+
+        foreach (Expense transaction in transactions)
         {
             var category = _categoryGuesser.Guess(transaction);
             if (category.HasValue)
@@ -85,8 +88,8 @@ public class Application
         }
 
 
-        transactions = transactions.OrderBy(x => x.Date).ToList();
-        _workbookService.WriteTransactions(transactions, _workbookService.GetWorksheet("2022"));
+        var perYear = transactions.OrderBy(x => x.Date).GroupBy(x => x.Date.Value.Year);
+        foreach (var grouping in perYear) _workbookService.WriteTransactions(grouping, _workbookService.GetWorksheet(grouping.Key.ToString()));
 
         _workbookService.SaveAndClose();
     }

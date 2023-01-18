@@ -28,11 +28,11 @@ public class CategoryLearnerService
         var (incomeAccounts, expenseAccounts) = CreateAccountsDictionary(expenses);
         var descriptions = CreateDescriptions(expenses);
         // Schrijf de dictionaries weg naar file
-        string jsonIncome = JsonConvert.SerializeObject(incomeAccounts, Formatting.Indented);
+        var jsonIncome = JsonConvert.SerializeObject(incomeAccounts, Formatting.Indented);
         File.WriteAllText(@"C:/Users/kwlt/Desktop/incomes.json", jsonIncome);
-        string jsonExpense = JsonConvert.SerializeObject(expenseAccounts, Formatting.Indented);
+        var jsonExpense = JsonConvert.SerializeObject(expenseAccounts, Formatting.Indented);
         File.WriteAllText(@"C:/Users/kwlt/Desktop/expenses.json", jsonExpense);
-        string jsonDescriptions = JsonConvert.SerializeObject(descriptions, Formatting.Indented);
+        var jsonDescriptions = JsonConvert.SerializeObject(descriptions, Formatting.Indented);
         File.WriteAllText(@"C:/Users/kwlt/Desktop/descriptions.json", jsonDescriptions);
     }
 
@@ -43,23 +43,19 @@ public class CategoryLearnerService
         var expenseAccounts = new Dictionary<string, AccountClassification>();
         foreach (Expense expense in expenses
                      .Where(expense => expense.Name != ""))
-        {
             FillExpensesDict(expense, expense.Amount > 0 ? incomeAccounts : expenseAccounts);
-        }
 
         return (incomeAccounts, expenseAccounts);
     }
 
     private void FillExpensesDict(Expense expense, IDictionary<string, AccountClassification> accountClassificationDict)
     {
-        if (!accountClassificationDict.TryGetValue(expense.Name, out var accountClassification))
-        {
+        if (!accountClassificationDict.TryGetValue(expense.Name, out AccountClassification? accountClassification))
             accountClassification = new AccountClassification
             {
                 Count = 0,
                 CategoryAmounts = new Dictionary<CategoryEnum, int>()
             };
-        }
 
         accountClassification.Count++;
 

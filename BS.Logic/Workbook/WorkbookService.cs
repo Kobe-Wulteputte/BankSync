@@ -20,10 +20,6 @@ public class WorkbookService
             throw new Exception("Workbook was not initialized before use");
     }
 
-    /// <summary>
-    /// Will open the workbook and set the active worksheet to the first sheet
-    /// </summary>
-    /// <param name="filePath">Path of the excel file</param>
     public void OpenWorkBook(string filePath)
     {
         _wb = new XLWorkbook(filePath);
@@ -38,7 +34,12 @@ public class WorkbookService
     public IXLWorksheet GetWorksheet(string name)
     {
         CheckIfWorkbookOpen();
-        return _wb.Worksheet(name);
+        if (_wb.Worksheets.TryGetWorksheet(name, out IXLWorksheet? ws)) return ws;
+        ws = _wb.Worksheets.Add(name);
+        ws.Cell(1, 1).InsertTable(new List<Expense>(), "table" + name);
+        ws.Columns().AdjustToContents();
+
+        return ws;
     }
 
     public void WriteTransactions(IEnumerable<Expense> expenses, IXLWorksheet ws)
@@ -56,12 +57,15 @@ public class WorkbookService
             row.Cell(4).SetValue(expense.Account);
             row.Cell(5).SetValue(expense.Name);
             row.Cell(6).SetValue(expense.Category);
+            if (expense.Category != "")
+                row.Cell(6).Style.Font.Italic = true;
             row.Cell(7).SetValue(expense.Group);
             row.Cell(8).SetValue(expense.Reimbursed ? "TRUE" : "");
             row.Cell(9).SetValue(expense.Description);
+            row.Cell(10).SetValue(expense.Id);
         }
 
-        table.Resize(table.FirstCellUsed(), row.Cell(9));
+        table.Resize(table.FirstCellUsed(), row.Cell(10));
     }
 
     public IEnumerable<Expense> GetAllExpensesOfWorksheet(IXLWorksheet ws)
@@ -80,7 +84,8 @@ public class WorkbookService
                 Category = x.Cell(6).GetValue<string>(),
                 Group = x.Cell(7).GetValue<string>(),
                 Reimbursed = x.Cell(8).GetValue<string>() == "TRUE",
-                Description = x.Cell(9).GetValue<string>()
+                Description = x.Cell(9).GetValue<string>(),
+                Id = x.Cell(10).GetValue<string>()
             });
 
         return expenses;
@@ -90,12 +95,26 @@ public class WorkbookService
     {
         CheckIfWorkbookOpen();
         var expenses = Enumerable.Empty<Expense>();
-        foreach (var worksheet in _wb.Worksheets)
+        foreach (IXLWorksheet? worksheet in _wb.Worksheets)
         {
             if (!Regex.Match(worksheet.Name, @"\d{4}").Success) continue;
             expenses = expenses.Concat(GetAllExpensesOfWorksheet(worksheet));
         }
 
         return expenses;
+    }
+
+    public IEnumerable<Expense> RemoveDuplicates(IEnumerable<Expense> expenses)
+    {
+        var ids = new HashSet<string>();
+        foreach (IXLWorksheet? worksheet in _wb.Worksheets.Where(ws => Regex.Match(ws.Name, @"\d{4}").Success))
+            ids.UnionWith(worksheet
+                .RangeUsed()
+                .RowsUsed()
+                .Skip(1)
+                .Select(x => x.Cell(10).GetValue<string>())
+                .ToHashSet());
+
+        return expenses.Where(x => !ids.Contains(x.Id));
     }
 }
