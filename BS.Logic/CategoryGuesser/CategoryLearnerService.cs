@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using BS.Data;
 using BS.Logic.Workbook;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -11,17 +12,19 @@ public class CategoryLearnerService
 {
     private readonly WorkbookService _workbookService;
     private readonly ILogger<CategoryLearnerService> _logger;
+    private readonly IConfiguration _configuration;
 
-    public CategoryLearnerService(WorkbookService workbookService, ILogger<CategoryLearnerService> logger)
+    public CategoryLearnerService(WorkbookService workbookService, ILogger<CategoryLearnerService> logger, IConfiguration configuration)
     {
         _workbookService = workbookService;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public void RunExpenseLearner()
     {
         // Laad de workbook in via workbookService
-        _workbookService.OpenWorkBook("C:/Users/kwlt/Desktop/Expenses.xlsx");
+        _workbookService.OpenWorkBook(_configuration["FilePaths:Expenses"]);
         var expenses = _workbookService.GetAllExpenses().ToList();
 
         // Stel de dictionaries op
@@ -29,11 +32,12 @@ public class CategoryLearnerService
         var descriptions = CreateDescriptions(expenses);
         // Schrijf de dictionaries weg naar file
         var jsonIncome = JsonConvert.SerializeObject(incomeAccounts, Formatting.Indented);
-        File.WriteAllText(@"C:/Users/kwlt/Desktop/incomes.json", jsonIncome);
+
+        File.WriteAllText(_configuration["FilePaths:JsonIncomes"], jsonIncome);
         var jsonExpense = JsonConvert.SerializeObject(expenseAccounts, Formatting.Indented);
-        File.WriteAllText(@"C:/Users/kwlt/Desktop/expenses.json", jsonExpense);
+        File.WriteAllText(_configuration["FilePaths:JsonExpenses"], jsonExpense);
         var jsonDescriptions = JsonConvert.SerializeObject(descriptions, Formatting.Indented);
-        File.WriteAllText(@"C:/Users/kwlt/Desktop/descriptions.json", jsonDescriptions);
+        File.WriteAllText(_configuration["FilePaths:JsonDescriptions"], jsonDescriptions);
     }
 
     private (Dictionary<string, AccountClassification>, Dictionary<string, AccountClassification>) CreateAccountsDictionary(

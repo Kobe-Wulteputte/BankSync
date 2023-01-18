@@ -2,6 +2,7 @@
 using BS.Logic.CategoryGuesser;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -18,12 +19,14 @@ public class Application
     private readonly InstitutionService _institutionService;
     private readonly ILogger<Application> _logger;
     private readonly RequisitionService _requisitionService;
+    private readonly IConfiguration _configuration;
     private readonly WorkbookService _workbookService;
 
     public Application(
         ILogger<Application> logger,
         InstitutionService institutionService,
         RequisitionService requisitionService,
+        IConfiguration configuration,
         ExpenseService expenseService,
         CategoryGuesserService categoryGuesser,
         WorkbookService workbookService,
@@ -33,6 +36,7 @@ public class Application
         _logger = logger;
         _institutionService = institutionService;
         _requisitionService = requisitionService;
+        _configuration = configuration;
         _expenseService = expenseService;
         _categoryGuesser = categoryGuesser;
         _workbookService = workbookService;
@@ -54,7 +58,8 @@ public class Application
 
         _logger.LogInformation($"Loaded {accounts.Count} accounts");
 
-        _workbookService.OpenWorkBook("C:/Users/kwlt/Desktop/ExpenseTest.xlsx");
+        var filePath = _configuration["FilePaths:Expenses"];
+        _workbookService.OpenWorkBook(filePath);
 
         var transactions = new List<Expense>();
         foreach (Guid accountGuid in accounts)

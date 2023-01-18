@@ -1,15 +1,18 @@
 ﻿using BS.Data;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 
 namespace BS.Logic.CategoryGuesser;
 
 public class CategoryGuesserService
 {
+    private readonly IConfiguration _configuration;
     private Dictionary<string, AccountClassification> _incomeAccounts;
     private Dictionary<string, AccountClassification> _expenseAccounts;
 
-    public CategoryGuesserService()
+    public CategoryGuesserService(IConfiguration configuration)
     {
+        _configuration = configuration;
         ReadFiles();
     }
 
@@ -42,10 +45,10 @@ public class CategoryGuesserService
 
     private void ReadFiles()
     {
-        var fileNameIncome = @"C:/Users/kwlt/Desktop/incomes.json";
+        var fileNameIncome = _configuration["FilePaths:JsonIncomes"];
         var jsonStringIncome = File.ReadAllText(fileNameIncome);
         _incomeAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringIncome);
-        var fileNameExpense = @"C:/Users/kwlt/Desktop/expenses.json";
+        var fileNameExpense = _configuration["FilePaths:JsonExpenses"];
         var jsonStringExpense = File.ReadAllText(fileNameExpense);
         _expenseAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringExpense);
     }
