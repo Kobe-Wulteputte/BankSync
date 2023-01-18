@@ -1,13 +1,19 @@
 ﻿using BS.Data;
-using BS.Logic;
+using BS.Logic.CategoryGuesser;
+using BS.Logic.Nordigen;
+using BS.Logic.Workbook;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using VMelnalksnis.NordigenDotNet.Requisitions;
 
-namespace BS.Console;
+namespace BS.Logic;
 
 public class Application
 {
     private readonly AccountService _accountService;
     private readonly ExpenseService _expenseService;
+    private readonly CategoryGuesserService _categoryGuesser;
     private readonly InstitutionService _institutionService;
     private readonly ILogger<Application> _logger;
     private readonly RequisitionService _requisitionService;
@@ -18,6 +24,7 @@ public class Application
         InstitutionService institutionService,
         RequisitionService requisitionService,
         ExpenseService expenseService,
+        CategoryGuesserService categoryGuesser,
         WorkbookService workbookService,
         AccountService accountService
     )
@@ -26,6 +33,7 @@ public class Application
         _institutionService = institutionService;
         _requisitionService = requisitionService;
         _expenseService = expenseService;
+        _categoryGuesser = categoryGuesser;
         _workbookService = workbookService;
         _accountService = accountService;
     }
@@ -45,7 +53,9 @@ public class Application
 
         _logger.LogInformation($"Loaded {accounts.Count} accounts");
 
-        _workbookService.OpenWorkBook();
+        _workbookService.OpenWorkBook("C:/Users/kwlt/Desktop/ExpenseTest.xlsx");
+
+        // TODO: One list per year
         var transactions = new List<Expense>();
         foreach (Guid account in accounts)
         {
@@ -60,8 +70,23 @@ public class Application
             transactions.AddRange(accountTransactions.Select(x => _expenseService.CreateExpense(x)));
         }
 
+        foreach (var transaction in transactions)
+        {
+            var category = _categoryGuesser.Guess(transaction);
+            if (category.HasValue)
+            {
+                _logger.LogInformation($"Transaction {transaction.Name} has category {category}");
+                transaction.Category = JsonConvert.SerializeObject(category, new StringEnumConverter()).Replace("\"", "");
+            }
+            else
+            {
+                transaction.Category = "";
+            }
+        }
+
+
         transactions = transactions.OrderBy(x => x.Date).ToList();
-        _workbookService.WriteTransactions(transactions);
+        _workbookService.WriteTransactions(transactions, _workbookService.GetWorksheet("2022"));
 
         _workbookService.SaveAndClose();
     }

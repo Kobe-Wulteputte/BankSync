@@ -1,5 +1,7 @@
-using BS.Console;
 using BS.Logic;
+using BS.Logic.CategoryGuesser;
+using BS.Logic.Nordigen;
+using BS.Logic.Workbook;
 using NodaTime;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
@@ -16,6 +18,8 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<EndUserAgreementService, EndUserAgreementService>();
         services.AddTransient<WorkbookService, WorkbookService>();
         services.AddTransient<ExpenseService, ExpenseService>();
+        services.AddTransient<CategoryGuesserService, CategoryGuesserService>();
+        services.AddTransient<CategoryLearnerService, CategoryLearnerService>();
         services.AddNordigenDotNet(ctx.Configuration);
     }).ConfigureLogging((context, cfg) =>
     {
@@ -25,7 +29,11 @@ IHost host = Host.CreateDefaultBuilder(args)
     })
     .Build();
 
+// var learner = host.Services.GetRequiredService<CategoryLearnerService>();
+// learner.RunExpenseLearner();
 var app = host.Services.GetRequiredService<Application>();
 await app.Run();
+
+
+
 Console.WriteLine("Done!");
-Console.ReadLine();

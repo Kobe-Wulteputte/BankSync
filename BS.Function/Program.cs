@@ -1,5 +1,7 @@
 using System.Reflection;
 using BS.Logic;
+using BS.Logic.Nordigen;
+using BS.Logic.Workbook;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

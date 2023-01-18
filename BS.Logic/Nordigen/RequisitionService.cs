@@ -1,7 +1,7 @@
 ﻿using VMelnalksnis.NordigenDotNet;
 using VMelnalksnis.NordigenDotNet.Requisitions;
 
-namespace BS.Logic;
+namespace BS.Logic.Nordigen;
 
 public class RequisitionService
 {

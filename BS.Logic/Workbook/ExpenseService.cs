@@ -1,7 +1,7 @@
 ﻿using BS.Data;
 using VMelnalksnis.NordigenDotNet.Accounts;
 
-namespace BS.Logic;
+namespace BS.Logic.Workbook;
 
 public class ExpenseService
 {

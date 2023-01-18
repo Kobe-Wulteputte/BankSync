@@ -1,7 +1,7 @@
 ﻿using VMelnalksnis.NordigenDotNet;
 using VMelnalksnis.NordigenDotNet.Agreements;
 
-namespace BS.Logic;
+namespace BS.Logic.Nordigen;
 
 public class EndUserAgreementService
 {

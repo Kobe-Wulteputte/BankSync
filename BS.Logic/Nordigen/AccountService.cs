@@ -3,7 +3,7 @@ using NodaTime;
 using VMelnalksnis.NordigenDotNet;
 using VMelnalksnis.NordigenDotNet.Accounts;
 
-namespace BS.Logic;
+namespace BS.Logic.Nordigen;
 
 public class AccountService
 {
