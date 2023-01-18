@@ -7,8 +7,8 @@ namespace BS.Logic;
 
 public class AccountService
 {
-    private readonly INordigenClient _nordigenClient;
     private readonly IConfiguration _configuration;
+    private readonly INordigenClient _nordigenClient;
 
 
     public AccountService(INordigenClient nordigenClient, IConfiguration configuration)
@@ -19,9 +19,9 @@ public class AccountService
 
     public async Task<List<BookedTransaction>> GetTransactions(Guid accountId)
     {
-        var now = Instant.FromDateTimeUtc(DateTime.UtcNow);
-        var past = now.Minus(Duration.FromDays(int.Parse(_configuration["RetrievalDays"])));
-        var transactions = await _nordigenClient.Accounts.GetTransactions(accountId, new Interval(past, now));
+        Instant now = Instant.FromDateTimeUtc(DateTime.UtcNow);
+        Instant past = now.Minus(Duration.FromDays(int.Parse(_configuration["RetrievalDays"])));
+        Transactions transactions = await _nordigenClient.Accounts.GetTransactions(accountId, new Interval(past, now));
         return transactions.Booked;
     }
 }

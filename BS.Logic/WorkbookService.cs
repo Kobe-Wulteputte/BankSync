@@ -1,15 +1,14 @@
 ﻿using BS.Data;
 using ClosedXML.Excel;
-using VMelnalksnis.NordigenDotNet.Accounts;
 
 namespace BS.Logic;
 
 public class WorkbookService
 {
     private readonly ExpenseService _expenseService;
+    private string _activeYear = "2023";
     private IXLWorkbook? _wb;
     private IXLWorksheet? _ws;
-    private string _activeYear = "2023";
 
     public WorkbookService(ExpenseService expenseService)
     {
@@ -38,9 +37,9 @@ public class WorkbookService
     public void WriteTransactions(IEnumerable<Expense> expenses)
     {
         CheckIfWorkbookOpen();
-        var table = _ws.Tables.FirstOrDefault();
-        var row = table.LastRowUsed();
-        foreach (var expense in expenses)
+        IXLTable? table = _ws.Tables.FirstOrDefault();
+        IXLRangeRow? row = table.LastRowUsed();
+        foreach (Expense expense in expenses)
         {
             //TODO: validate date is in active year
             row = row.RowBelow();

@@ -8,12 +8,12 @@
         <UserSecretsId>f624a455-0760-4ea1-987e-1eba2935a0a0</UserSecretsId>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.8.0" />
-        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.0.12" />
-        <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.7.0" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="6.0.1" />
-        <PackageReference Include="VMelnalksnis.NordigenDotNet.DependencyInjection" Version="1.1.1" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.8.0"/>
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.0.12"/>
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.7.0"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="6.0.1"/>
+        <PackageReference Include="VMelnalksnis.NordigenDotNet.DependencyInjection" Version="1.1.1"/>
     </ItemGroup>
     <ItemGroup>
         <None Update="host.json">
@@ -25,9 +25,9 @@
         </None>
     </ItemGroup>
     <ItemGroup>
-        <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
+        <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext"/>
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\BS.Logic\BS.Logic.csproj" />
+        <ProjectReference Include="..\BS.Logic\BS.Logic.csproj"/>
     </ItemGroup>
 </Project>

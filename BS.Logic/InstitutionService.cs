@@ -5,8 +5,8 @@ namespace BS.Logic;
 
 public class InstitutionService
 {
-    private static string RevolutInstitutionId = "REVOLUT_REVOGB21";
-    private static string ArgentaInstitutionId = "ARGENTA_ARSPBE22";
+    private static readonly string RevolutInstitutionId = "REVOLUT_REVOGB21";
+    private static readonly string ArgentaInstitutionId = "ARGENTA_ARSPBE22";
     private readonly INordigenClient _nordigenClient;
 
     public InstitutionService(INordigenClient nordigenClient)

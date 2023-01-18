@@ -5,10 +5,6 @@ namespace BS.Logic;
 
 public class ExpenseService
 {
-    public ExpenseService()
-    {
-    }
-
     public Expense CreateExpense(BookedTransaction transaction)
     {
         return new Expense

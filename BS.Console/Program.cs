@@ -1,7 +1,7 @@
-using NodaTime;
-using VMelnalksnis.NordigenDotNet.DependencyInjection;
 using BS.Console;
 using BS.Logic;
+using NodaTime;
+using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
 IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureHostConfiguration(cfg => { cfg.AddJsonFile("appsettings.json"); })

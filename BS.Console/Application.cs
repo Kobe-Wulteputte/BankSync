@@ -6,12 +6,12 @@ namespace BS.Console;
 
 public class Application
 {
-    private readonly ILogger<Application> _logger;
-    private readonly InstitutionService _institutionService;
-    private readonly RequisitionService _requisitionService;
-    private readonly ExpenseService _expenseService;
-    private readonly WorkbookService _workbookService;
     private readonly AccountService _accountService;
+    private readonly ExpenseService _expenseService;
+    private readonly InstitutionService _institutionService;
+    private readonly ILogger<Application> _logger;
+    private readonly RequisitionService _requisitionService;
+    private readonly WorkbookService _workbookService;
 
     public Application(
         ILogger<Application> logger,
@@ -35,15 +35,12 @@ public class Application
         var accounts = new HashSet<Guid>();
         var reqs = _requisitionService.GetAll();
 
-        await foreach (var req in reqs)
+        await foreach (Requisition req in reqs)
         {
             if (req.Status != RequisitionStatus.Ln) continue;
             // Handle other types later
             _logger.LogInformation($"Processing requisition with id: {req.Id}");
-            foreach (Guid reqAccount in req.Accounts)
-            {
-                accounts.Add(reqAccount);
-            }
+            foreach (Guid reqAccount in req.Accounts) accounts.Add(reqAccount);
         }
 
         _logger.LogInformation($"Loaded {accounts.Count} accounts");

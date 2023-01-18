@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using System.Reflection;
 using BS.Logic;
 using Microsoft.Extensions.Configuration;
@@ -7,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using NodaTime;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
-var host = new HostBuilder()
+IHost? host = new HostBuilder()
     .ConfigureAppConfiguration((hostContext, builder) =>
     {
         builder
