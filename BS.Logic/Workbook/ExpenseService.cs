@@ -13,7 +13,10 @@ public class ExpenseService
             Account = transaction.DebtorAccount?.Iban ?? transaction.CreditorAccount?.Iban ?? "",
             Amount = transaction.TransactionAmount.Amount,
             Category = "",
-            Date = transaction.ValueDate?.ToDateTimeUnspecified() ?? transaction.BookingDate.ToDateTimeUnspecified(),
+            Date = DateTime.Compare(transaction.ValueDate?.ToDateTimeUnspecified() ?? DateTime.MaxValue,
+                transaction.BookingDate.ToDateTimeUnspecified()) < 0
+                ? transaction.ValueDate?.ToDateTimeUnspecified()
+                : transaction.BookingDate.ToDateTimeUnspecified(),
             Description = transaction.StructuredInformation ?? transaction.UnstructuredInformation,
             Group = "",
             Name = transaction.DebtorName ?? transaction.CreditorName ?? "",
