@@ -12,8 +12,6 @@ public class RequisitionService
         _nordigenClient = nordigenClient;
     }
 
-    public Guid ReqId { get; } = new("e5e492ab-d407-4722-8b56-82ef4656841e");
-
     public async Task<Requisition> New(string institutionId, string? userName)
     {
         var creation = new RequisitionCreation(new Uri("http://localhost"), institutionId);

@@ -7,6 +7,7 @@ public class InstitutionService
 {
     private static readonly string RevolutInstitutionId = "REVOLUT_REVOGB21";
     private static readonly string ArgentaInstitutionId = "ARGENTA_ARSPBE22";
+    private static readonly string PayPalInstitutionId = "PAYPAL_PPLXLULL";
     private readonly INordigenClient _nordigenClient;
 
     public InstitutionService(INordigenClient nordigenClient)
@@ -25,7 +26,8 @@ public class InstitutionService
         return new List<Institution>
         {
             await _nordigenClient.Institutions.Get(RevolutInstitutionId),
-            await _nordigenClient.Institutions.Get(ArgentaInstitutionId)
+            await _nordigenClient.Institutions.Get(ArgentaInstitutionId),
+            await _nordigenClient.Institutions.Get(PayPalInstitutionId)
         };
     }
 }

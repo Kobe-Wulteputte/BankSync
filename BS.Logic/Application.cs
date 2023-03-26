@@ -16,7 +16,6 @@ public class Application
     private readonly AccountService _accountService;
     private readonly ExpenseService _expenseService;
     private readonly CategoryGuesserService _categoryGuesser;
-    private readonly InstitutionService _institutionService;
     private readonly ILogger<Application> _logger;
     private readonly RequisitionService _requisitionService;
     private readonly IConfiguration _configuration;
@@ -24,7 +23,6 @@ public class Application
 
     public Application(
         ILogger<Application> logger,
-        InstitutionService institutionService,
         RequisitionService requisitionService,
         IConfiguration configuration,
         ExpenseService expenseService,
@@ -34,7 +32,6 @@ public class Application
     )
     {
         _logger = logger;
-        _institutionService = institutionService;
         _requisitionService = requisitionService;
         _configuration = configuration;
         _expenseService = expenseService;
@@ -64,16 +61,25 @@ public class Application
         var transactions = new List<Expense>();
         foreach (Guid accountGuid in accounts)
         {
-            var accountTransactions = await _accountService.GetTransactions(accountGuid);
             Account account = await _accountService.Get(accountGuid);
-            if (accountTransactions.Count == 0)
+            try
             {
-                _logger.LogWarning($"No transactions for account {account.InstitutionId} {account.Iban}");
-                continue;
-            }
+                var accountTransactions = await _accountService.GetTransactions(accountGuid);
+                if (accountTransactions.Count == 0)
+                {
+                    _logger.LogWarning($"No transactions for account {account.InstitutionId} {account.Iban}");
+                    continue;
+                }
 
-            _logger.LogInformation($"Found {accountTransactions.Count} transactions for account {accountGuid}");
-            transactions.AddRange(accountTransactions.Select(x => _expenseService.CreateExpense(x, account.InstitutionId)));
+                _logger.LogInformation($"Found {accountTransactions.Count} transactions for account {account.InstitutionId} {accountGuid}");
+                transactions.AddRange(accountTransactions.Select(x => _expenseService.CreateExpense(x, account.InstitutionId)));
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
+
+                _logger.LogError(e.Message);
+            }
         }
 
         transactions = _workbookService.RemoveDuplicates(transactions).ToList();

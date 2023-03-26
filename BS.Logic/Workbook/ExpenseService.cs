@@ -10,7 +10,7 @@ public class ExpenseService
         return new Expense
         {
             Type = accountName,
-            Account = transaction.DebtorAccount?.Iban ?? transaction.CreditorAccount?.Iban ?? "",
+            Account = transaction.CreditorAccount?.Iban ?? transaction.DebtorAccount?.Iban ?? "",
             Amount = transaction.TransactionAmount.Amount,
             Category = "",
             Date = DateTime.Compare(transaction.ValueDate?.ToDateTimeUnspecified() ?? DateTime.MaxValue,
@@ -19,7 +19,7 @@ public class ExpenseService
                 : transaction.BookingDate.ToDateTimeUnspecified(),
             Description = transaction.StructuredInformation ?? transaction.UnstructuredInformation,
             Group = "",
-            Name = transaction.DebtorName ?? transaction.CreditorName ?? "",
+            Name = transaction.CreditorName ?? transaction.DebtorName ?? "",
             Reimbursed = false,
             Id = transaction.EntryReference ?? transaction.TransactionId
         };

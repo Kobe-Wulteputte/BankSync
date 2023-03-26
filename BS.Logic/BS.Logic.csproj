@@ -4,18 +4,23 @@
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <UserSecretsId>7ad7e96e-2762-4b97-a2b0-2110314a060d</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="ClosedXML" Version="0.100.3"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0"/>
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.2"/>
-        <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.1.1"/>
+        <PackageReference Include="Azure.Identity" Version="1.8.2" />
+        <PackageReference Include="ClosedXML" Version="0.100.3" />
+        <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Graph" Version="4.54.0" />
+        <PackageReference Include="Microsoft.Identity.Web.Certificate" Version="1.26.0" />
+        <PackageReference Include="Microsoft.Identity.Web.TokenCache" Version="1.26.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+        <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.1.1" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\BS.Data\BS.Data.csproj"/>
+        <ProjectReference Include="..\BS.Data\BS.Data.csproj" />
     </ItemGroup>
 
 </Project>
