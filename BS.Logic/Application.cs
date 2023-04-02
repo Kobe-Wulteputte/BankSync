@@ -1,4 +1,5 @@
-﻿using BS.Data;
+﻿using System.Net;
+using BS.Data;
 using BS.Logic.CategoryGuesser;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
@@ -47,7 +48,12 @@ public class Application
 
         await foreach (Requisition req in reqs)
         {
-            if (req.Status != RequisitionStatus.Ln) continue;
+            if (req.Status != RequisitionStatus.Ln)
+            {
+                _logger.LogWarning($"Skipping requisition with id: {req.Id}");
+                continue;
+            }
+
             // Handle other types later
             _logger.LogInformation($"Processing requisition with id: {req.Id}");
             foreach (Guid reqAccount in req.Accounts) accounts.Add(reqAccount);
@@ -74,10 +80,24 @@ public class Application
                 _logger.LogInformation($"Found {accountTransactions.Count} transactions for account {account.InstitutionId} {accountGuid}");
                 transactions.AddRange(accountTransactions.Select(x => _expenseService.CreateExpense(x, account.InstitutionId)));
             }
+            catch (HttpRequestException e)
+            {
+                if (e.StatusCode == HttpStatusCode.Conflict)
+                {
+                    _logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
+                    _logger.LogError(e.Message);
+                    await foreach (Requisition req in reqs)
+                    {
+                        if (req.Accounts.Contains(accountGuid))
+                        {
+                            _logger.LogInformation($"To enable account {account.InstitutionId} {account.Iban} please visit {req.Link}");
+                        }
+                    }
+                }
+            }
             catch (Exception e)
             {
                 _logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
-
                 _logger.LogError(e.Message);
             }
         }
