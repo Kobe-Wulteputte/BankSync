@@ -4,6 +4,7 @@ using BS.Logic.FileRetrieval;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
 using NodaTime;
+using Serilog;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
 IHost host = Host.CreateDefaultBuilder(args)
@@ -27,17 +28,28 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         cfg.ClearProviders();
         cfg.AddConfiguration(context.Configuration.GetSection("Logging"));
-        cfg.AddConsole();
+        cfg.AddSerilog(new LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.File(context.Configuration["FilePaths:logs"] ?? "log.txt", rollingInterval: RollingInterval.Month)
+            .CreateLogger()
+        );
     })
     .Build();
 
-var learner = host.Services.GetRequiredService<CategoryLearnerService>();
-learner.RunExpenseLearner();
+string[] arguments = Environment.GetCommandLineArgs();
+
+if (arguments.Length > 1)
+{
+    if (arguments[1] == "learn")
+    {
+        var learner = host.Services.GetRequiredService<CategoryLearnerService>();
+        learner.RunExpenseLearner();
+        return;
+    }
+}
 
 var app = host.Services.GetRequiredService<Application>();
 await app.Run();
 
-// var app = host.Services.GetRequiredService<GraphService>();
-// await app.Test2();
 
 Console.WriteLine("Done!");

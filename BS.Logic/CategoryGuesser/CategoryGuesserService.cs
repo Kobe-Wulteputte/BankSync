@@ -1,5 +1,6 @@
 ﻿using BS.Data;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace BS.Logic.CategoryGuesser;
@@ -7,12 +8,14 @@ namespace BS.Logic.CategoryGuesser;
 public class CategoryGuesserService
 {
     private readonly IConfiguration _configuration;
+    private readonly ILogger<CategoryGuesserService> _logger;
     private Dictionary<string, AccountClassification> _incomeAccounts;
     private Dictionary<string, AccountClassification> _expenseAccounts;
 
-    public CategoryGuesserService(IConfiguration configuration)
+    public CategoryGuesserService(IConfiguration configuration, ILogger<CategoryGuesserService> logger)
     {
         _configuration = configuration;
+        _logger = logger;
         ReadFiles();
     }
 
@@ -45,11 +48,18 @@ public class CategoryGuesserService
 
     private void ReadFiles()
     {
-        var fileNameIncome = _configuration["FilePaths:JsonIncomes"];
-        var jsonStringIncome = File.ReadAllText(fileNameIncome);
-        _incomeAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringIncome);
-        var fileNameExpense = _configuration["FilePaths:JsonExpenses"];
-        var jsonStringExpense = File.ReadAllText(fileNameExpense);
-        _expenseAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringExpense);
+        try
+        {
+            var fileNameIncome = _configuration["FilePaths:JsonIncomes"];
+            var jsonStringIncome = File.ReadAllText(fileNameIncome);
+            _incomeAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringIncome);
+            var fileNameExpense = _configuration["FilePaths:JsonExpenses"];
+            var jsonStringExpense = File.ReadAllText(fileNameExpense);
+            _expenseAccounts = JsonConvert.DeserializeObject<Dictionary<string, AccountClassification>>(jsonStringExpense);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error reading files");
+        }
     }
 }
