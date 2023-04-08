@@ -102,8 +102,9 @@ public class Application
             }
         }
 
+        _logger.LogInformation($"Found a total of {transactions.Count} transactions");
         transactions = _workbookService.RemoveDuplicates(transactions).ToList();
-
+        _logger.LogInformation($"Found a total of {transactions.Count} new transactions");
         foreach (Expense transaction in transactions)
         {
             var category = _categoryGuesser.Guess(transaction);

@@ -27,10 +27,10 @@ IHost host = Host.CreateDefaultBuilder(args)
     }).ConfigureLogging((context, cfg) =>
     {
         cfg.ClearProviders();
-        cfg.AddConfiguration(context.Configuration.GetSection("Logging"));
         cfg.AddSerilog(new LoggerConfiguration()
             .WriteTo.Console()
             .WriteTo.File(context.Configuration["FilePaths:logs"] ?? "log.txt", rollingInterval: RollingInterval.Month)
+            .ReadFrom.Configuration(context.Configuration)
             .CreateLogger()
         );
     })
@@ -50,5 +50,3 @@ if (arguments.Length > 1)
 
 var app = host.Services.GetRequiredService<Application>();
 await app.Run();
-
-

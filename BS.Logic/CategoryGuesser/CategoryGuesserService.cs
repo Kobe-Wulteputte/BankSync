@@ -59,7 +59,9 @@ public class CategoryGuesserService
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Error reading files");
+            _logger.LogError("Error reading files: " + e.Message);
+            _incomeAccounts = new Dictionary<string, AccountClassification>();
+            _expenseAccounts = new Dictionary<string, AccountClassification>();
         }
     }
 }
