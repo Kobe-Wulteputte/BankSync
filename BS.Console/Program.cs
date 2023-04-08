@@ -52,4 +52,3 @@ var app = host.Services.GetRequiredService<Application>();
 await app.Run();
 
 
-Console.WriteLine("Done!");

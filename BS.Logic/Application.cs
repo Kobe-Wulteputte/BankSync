@@ -82,15 +82,15 @@ public class Application
             }
             catch (HttpRequestException e)
             {
+                _logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
+                _logger.LogError(e.Message);
                 if (e.StatusCode == HttpStatusCode.Conflict)
                 {
-                    _logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
-                    _logger.LogError(e.Message);
                     await foreach (Requisition req in reqs)
                     {
                         if (req.Accounts.Contains(accountGuid))
                         {
-                            _logger.LogInformation($"To enable account {account.InstitutionId} {account.Iban} please visit {req.Link}");
+                            _logger.LogWarning($"To enable account {account.InstitutionId} {account.Iban} please visit {req.Link}");
                         }
                     }
                 }
@@ -122,6 +122,9 @@ public class Application
         var perYear = transactions.OrderBy(x => x.Date).GroupBy(x => x.Date.Value.Year);
         foreach (var grouping in perYear) _workbookService.WriteTransactions(grouping, _workbookService.GetWorksheet(grouping.Key.ToString()));
 
+        _logger.LogInformation("Saving and closing workbook");
         _workbookService.SaveAndClose();
+
+        _logger.LogInformation("Done");
     }
 }
