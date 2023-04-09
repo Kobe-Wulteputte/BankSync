@@ -50,12 +50,13 @@ public class Application
         {
             if (req.Status != RequisitionStatus.Ln)
             {
-                _logger.LogWarning($"Skipping requisition with id: {req.Id}");
+                _logger.LogWarning($"Skipping requisition with id: {req.Id}, {req.InstitutionId}");
+                _logger.LogInformation($"Status: {req.Status}, Link: {req.Link}");
                 continue;
             }
 
             // Handle other types later
-            _logger.LogInformation($"Processing requisition with id: {req.Id}");
+            _logger.LogInformation($"Processing requisition with id: {req.Id}, {req.InstitutionId}");
             foreach (Guid reqAccount in req.Accounts) accounts.Add(reqAccount);
         }
 
