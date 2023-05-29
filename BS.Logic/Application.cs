@@ -7,6 +7,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using OpenAI.GPT3.Interfaces;
+using OpenAI.GPT3.ObjectModels;
+using OpenAI.GPT3.ObjectModels.RequestModels;
 using VMelnalksnis.NordigenDotNet.Accounts;
 using VMelnalksnis.NordigenDotNet.Requisitions;
 
@@ -16,7 +19,8 @@ public class Application
 {
     private readonly AccountService _accountService;
     private readonly ExpenseService _expenseService;
-    private readonly CategoryGuesserService _categoryGuesser;
+    private readonly AiCategoryGuesserService _categoryGuesser;
+    private readonly IOpenAIService _openAiService;
     private readonly ILogger<Application> _logger;
     private readonly RequisitionService _requisitionService;
     private readonly IConfiguration _configuration;
@@ -27,7 +31,8 @@ public class Application
         RequisitionService requisitionService,
         IConfiguration configuration,
         ExpenseService expenseService,
-        CategoryGuesserService categoryGuesser,
+        AiCategoryGuesserService categoryGuesser,
+        IOpenAIService openAiService,
         WorkbookService workbookService,
         AccountService accountService
     )
@@ -37,6 +42,7 @@ public class Application
         _configuration = configuration;
         _expenseService = expenseService;
         _categoryGuesser = categoryGuesser;
+        _openAiService = openAiService;
         _workbookService = workbookService;
         _accountService = accountService;
     }
@@ -108,7 +114,7 @@ public class Application
         _logger.LogInformation($"Found a total of {transactions.Count} new transactions");
         foreach (Expense transaction in transactions)
         {
-            var category = _categoryGuesser.Guess(transaction);
+            var category = await _categoryGuesser.Guess(transaction);
             if (category.HasValue)
             {
                 _logger.LogInformation($"Transaction {transaction.Name} has category {category}");
@@ -122,11 +128,17 @@ public class Application
 
 
         var perYear = transactions.OrderBy(x => x.Date).GroupBy(x => x.Date.Value.Year);
-        foreach (var grouping in perYear) _workbookService.WriteTransactions(grouping, _workbookService.GetWorksheet(grouping.Key.ToString()));
+        foreach (var grouping in perYear)
+            _workbookService.WriteTransactions(grouping, _workbookService.GetWorksheet(grouping.Key.ToString()));
 
         _logger.LogInformation("Saving and closing workbook");
         _workbookService.SaveAndClose();
 
         _logger.LogInformation("Done");
+    }
+
+    public async Task Tst()
+    {
+        await AiFineTuneService.Test(_openAiService);
     }
 }

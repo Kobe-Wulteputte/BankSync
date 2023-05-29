@@ -12,4 +12,7 @@ public class Expense
     public bool Reimbursed { get; set; }
     public string Description { get; set; }
     public string Id { get; set; }
+
+    public string AiPrompt =>
+        $"Type: {Type}, Amount: {Amount}, Date: {Date.Value:dd-MM-yyyy}, Name: {Name}, Description: {Description} ->";
 }

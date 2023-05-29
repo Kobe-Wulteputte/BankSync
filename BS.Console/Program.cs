@@ -4,6 +4,7 @@ using BS.Logic.FileRetrieval;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
 using NodaTime;
+using OpenAI.GPT3.Extensions;
 using Serilog;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
@@ -23,7 +24,9 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<CategoryGuesserService, CategoryGuesserService>();
         services.AddTransient<CategoryLearnerService, CategoryLearnerService>();
         services.AddTransient<GraphService, GraphService>();
+        services.AddTransient<AiCategoryGuesserService, AiCategoryGuesserService>();
         services.AddNordigenDotNet(ctx.Configuration);
+        services.AddOpenAIService();
     }).ConfigureLogging((context, cfg) =>
     {
         cfg.ClearProviders();

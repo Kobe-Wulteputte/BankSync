@@ -9,18 +9,18 @@ public class CategoryGuesserService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<CategoryGuesserService> _logger;
-    private Dictionary<string, AccountClassification> _incomeAccounts;
-    private Dictionary<string, AccountClassification> _expenseAccounts;
+    private Dictionary<string, AccountClassification>? _incomeAccounts;
+    private Dictionary<string, AccountClassification>? _expenseAccounts;
 
     public CategoryGuesserService(IConfiguration configuration, ILogger<CategoryGuesserService> logger)
     {
         _configuration = configuration;
         _logger = logger;
-        ReadFiles();
     }
 
     public CategoryEnum? Guess(Expense expense)
     {
+        if (_incomeAccounts == null || _expenseAccounts == null) ReadFiles();
         CategoryGuess account = GetAccountGuess(expense);
         (CategoryEnum, double) mostLikelyCategory = account.MostLikelyCategory;
         return mostLikelyCategory.Item2 >= 0.5 ? mostLikelyCategory.Item1 : null;
