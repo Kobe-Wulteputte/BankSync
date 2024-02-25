@@ -2,9 +2,8 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using OpenAI.GPT3.Interfaces;
-using OpenAI.GPT3.ObjectModels;
-using OpenAI.GPT3.ObjectModels.RequestModels;
+using OpenAI.Interfaces;
+using OpenAI.ObjectModels.RequestModels;
 
 namespace BS.Logic.CategoryGuesser;
 
@@ -22,7 +21,7 @@ public class AiCategoryGuesserService
     private async Task<string> GetModel()
     {
         // var models = await _openAiService.FineTunes.ListFineTunes();
-        return "curie:ft-personal-2023-05-29-14-34-57";
+        return "ft:davinci-002:personal::8r1b6emw";
     }
 
     public async Task<CategoryEnum?> Guess(Expense expense)

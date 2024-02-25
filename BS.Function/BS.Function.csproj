@@ -13,7 +13,7 @@
         <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.7.0"/>
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0"/>
         <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="6.0.1"/>
-        <PackageReference Include="VMelnalksnis.NordigenDotNet.DependencyInjection" Version="1.1.1"/>
+        <PackageReference Include="VMelnalksnis.NordigenDotNet.DependencyInjection" Version="1.4.0" />
     </ItemGroup>
     <ItemGroup>
         <None Update="host.json">

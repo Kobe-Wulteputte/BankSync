@@ -4,7 +4,7 @@ using BS.Logic.FileRetrieval;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
 using NodaTime;
-using OpenAI.GPT3.Extensions;
+using OpenAI.Extensions;
 using Serilog;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
@@ -53,3 +53,4 @@ if (arguments.Length > 1)
 
 var app = host.Services.GetRequiredService<Application>();
 await app.Run();
+// await app.CreateNewAcc();

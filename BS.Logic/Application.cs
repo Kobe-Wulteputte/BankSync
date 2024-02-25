@@ -7,9 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using OpenAI.GPT3.Interfaces;
-using OpenAI.GPT3.ObjectModels;
-using OpenAI.GPT3.ObjectModels.RequestModels;
+using OpenAI.Interfaces;
 using VMelnalksnis.NordigenDotNet.Accounts;
 using VMelnalksnis.NordigenDotNet.Requisitions;
 
@@ -19,6 +17,7 @@ public class Application
 {
     private readonly AccountService _accountService;
     private readonly ExpenseService _expenseService;
+    private readonly EndUserAgreementService _endUserAgreementService;
     private readonly AiCategoryGuesserService _categoryGuesser;
     private readonly IOpenAIService _openAiService;
     private readonly ILogger<Application> _logger;
@@ -31,6 +30,7 @@ public class Application
         RequisitionService requisitionService,
         IConfiguration configuration,
         ExpenseService expenseService,
+        EndUserAgreementService endUserAgreementService,
         AiCategoryGuesserService categoryGuesser,
         IOpenAIService openAiService,
         WorkbookService workbookService,
@@ -41,6 +41,7 @@ public class Application
         _requisitionService = requisitionService;
         _configuration = configuration;
         _expenseService = expenseService;
+        _endUserAgreementService = endUserAgreementService;
         _categoryGuesser = categoryGuesser;
         _openAiService = openAiService;
         _workbookService = workbookService;
@@ -140,5 +141,18 @@ public class Application
     public async Task Tst()
     {
         await AiFineTuneService.Test(_openAiService);
+    }
+
+    public async Task CreateNewAcc()
+    {
+        // await _endUserAgreementService.DeleteAllEndUserAgreements();
+        // await _requisitionService.DeleteAllRequisitions();
+        // var eua1 = await _endUserAgreementService.CreateEndUserAgreement(InstitutionService.ArgentaInstitutionId);
+        // var eua2 = await _endUserAgreementService.CreateEndUserAgreement(InstitutionService.PayPalInstitutionId);
+        // var eua3 = await _endUserAgreementService.CreateEndUserAgreement(InstitutionService.RevolutInstitutionId);
+        //
+        // var req1 = await _requisitionService.New(InstitutionService.ArgentaInstitutionId, "Argenta2402", eua1.Id);
+        // var req2 = await _requisitionService.New(InstitutionService.PayPalInstitutionId, "Paypal2402", eua2.Id);
+        // var req3 = await _requisitionService.New(InstitutionService.RevolutInstitutionId, "Revolut2402",eua3.Id);
     }
 }

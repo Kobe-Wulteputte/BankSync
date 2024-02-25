@@ -12,15 +12,32 @@ public class RequisitionService
         _nordigenClient = nordigenClient;
     }
 
-    public async Task<Requisition> New(string institutionId, string? userName)
+    public async Task<Requisition> New(string institutionId, string? userName, Guid? agreement = null)
     {
         var creation = new RequisitionCreation(new Uri("http://localhost"), institutionId);
         creation.Reference = userName;
+        creation.Agreement = agreement;
         return await _nordigenClient.Requisitions.Post(creation);
     }
 
     public IAsyncEnumerable<Requisition> GetAll()
     {
         return _nordigenClient.Requisitions.Get();
+    }
+
+    public async Task DeleteAllRequisitions()
+    {
+        var reqs = _nordigenClient.Requisitions.Get();
+        await foreach (var req in reqs)
+        {
+            try
+            {
+                await _nordigenClient.Requisitions.Delete(req.Id);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }
     }
 }

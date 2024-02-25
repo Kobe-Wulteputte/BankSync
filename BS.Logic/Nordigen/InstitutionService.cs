@@ -5,9 +5,9 @@ namespace BS.Logic.Nordigen;
 
 public class InstitutionService
 {
-    private static readonly string RevolutInstitutionId = "REVOLUT_REVOGB21";
-    private static readonly string ArgentaInstitutionId = "ARGENTA_ARSPBE22";
-    private static readonly string PayPalInstitutionId = "PAYPAL_PPLXLULL";
+    public static readonly string RevolutInstitutionId = "REVOLUT_REVOGB21";
+    public static readonly string ArgentaInstitutionId = "ARGENTA_ARSPBE22";
+    public static readonly string PayPalInstitutionId = "PAYPAL_PPLXLULL";
     private readonly INordigenClient _nordigenClient;
 
     public InstitutionService(INordigenClient nordigenClient)
