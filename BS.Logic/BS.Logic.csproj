@@ -8,15 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Azure.Identity" Version="1.8.2" />
         <PackageReference Include="Betalgo.OpenAI" Version="7.4.6" />
         <PackageReference Include="ClosedXML" Version="0.100.3" />
         <PackageReference Include="Going.Plaid" Version="6.17.1" />
         <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
-        <PackageReference Include="Microsoft.Graph" Version="4.54.0" />
-        <PackageReference Include="Microsoft.Identity.Web.Certificate" Version="1.26.0" />
-        <PackageReference Include="Microsoft.Identity.Web.TokenCache" Version="1.26.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
         <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.4.0" />
     </ItemGroup>

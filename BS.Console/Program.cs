@@ -1,6 +1,5 @@
 using BS.Logic;
 using BS.Logic.CategoryGuesser;
-using BS.Logic.FileRetrieval;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
 using NodaTime;
@@ -23,7 +22,6 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<ExpenseService, ExpenseService>();
         services.AddTransient<CategoryGuesserService, CategoryGuesserService>();
         services.AddTransient<CategoryLearnerService, CategoryLearnerService>();
-        services.AddTransient<GraphService, GraphService>();
         services.AddTransient<AiCategoryGuesserService, AiCategoryGuesserService>();
         services.AddNordigenDotNet(ctx.Configuration);
         services.AddOpenAIService();
@@ -52,5 +50,5 @@ if (arguments.Length > 1)
 }
 
 var app = host.Services.GetRequiredService<Application>();
+await app.CreateNewAccCheck();
 await app.Run();
-// await app.CreateNewAcc();

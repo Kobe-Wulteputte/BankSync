@@ -15,7 +15,6 @@ IHost? host = new HostBuilder()
             .AddJsonFile("local.settings.json", true)
             .AddUserSecrets(Assembly.GetExecutingAssembly(), false);
     })
-    .ConfigureFunctionsWorkerDefaults()
     .ConfigureServices((ctx, services) =>
     {
         services.AddSingleton<IClock>(SystemClock.Instance);

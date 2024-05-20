@@ -25,6 +25,23 @@ public class RequisitionService
         return _nordigenClient.Requisitions.Get();
     }
 
+    public async Task<Requisition> Get(Guid id)
+    {
+        return await _nordigenClient.Requisitions.Get(id);
+    }
+
+    public async Task Delete(Guid id)
+    {
+        try
+        {
+            await _nordigenClient.Requisitions.Delete(id);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+    }
+
     public async Task DeleteAllRequisitions()
     {
         var reqs = _nordigenClient.Requisitions.Get();

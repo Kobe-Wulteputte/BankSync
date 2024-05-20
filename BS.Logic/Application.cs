@@ -143,8 +143,20 @@ public class Application
         await AiFineTuneService.Test(_openAiService);
     }
 
-    public async Task CreateNewAcc()
+    public async Task CreateNewAccCheck()
     {
+        var reqs = _requisitionService.GetAll();
+        await foreach (var requisition in reqs)
+        {
+            if (requisition.Status != RequisitionStatus.Ex) continue;
+            _logger.LogInformation($"Deleting requisition {requisition.Id}");
+            await _endUserAgreementService.TryDeleteEndUserAgreement(requisition.Agreement.Value);
+            await _requisitionService.Delete(requisition.Id);
+
+            _logger.LogInformation($"Creating new requisition and end user agreement for institution {requisition.InstitutionId}");
+            var eua = await _endUserAgreementService.CreateEndUserAgreement(requisition.InstitutionId);
+            await _requisitionService.New(requisition.InstitutionId, requisition.InstitutionId + $"{new DateTime():yyyy-MM-dd}", eua.Id);
+        }
         // await _endUserAgreementService.DeleteAllEndUserAgreements();
         // await _requisitionService.DeleteAllRequisitions();
         // var eua1 = await _endUserAgreementService.CreateEndUserAgreement(InstitutionService.ArgentaInstitutionId);

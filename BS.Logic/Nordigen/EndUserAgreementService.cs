@@ -18,8 +18,20 @@ public class EndUserAgreementService
         // End user agreement has option for max historical days and max valid days, default both 90 days
         EndUserAgreement endUserAgreement =
             await _nordigenClient.Agreements.Post(new EndUserAgreementCreation(institutionId, 90, 90,
-                new() { "balances", "details", "transactions" }));
+                new() {"balances", "details", "transactions"}));
         return endUserAgreement;
+    }
+
+    public async Task TryDeleteEndUserAgreement(Guid agreementId)
+    {
+        try
+        {
+            await _nordigenClient.Agreements.Delete(agreementId);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
 
     public async Task DeleteAllEndUserAgreements()
