@@ -1,19 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <UserSecretsId>7ad7e96e-2762-4b97-a2b0-2110314a060d</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Betalgo.OpenAI" Version="7.4.6" />
-        <PackageReference Include="ClosedXML" Version="0.100.3" />
-        <PackageReference Include="Going.Plaid" Version="6.17.1" />
-        <PackageReference Include="Microsoft.Extensions.Configuration" Version="7.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+        <PackageReference Include="Betalgo.OpenAI" Version="8.6.2" />
+        <PackageReference Include="ClosedXML" Version="0.102.3" />
+        <PackageReference Include="FluentEmail.Smtp" Version="3.0.2" />
+        <PackageReference Include="Going.Plaid" Version="6.29.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
         <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.4.0" />
     </ItemGroup>
 

@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using BS.Data;
 using BS.Logic.CategoryGuesser;
+using BS.Logic.Mailing;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
 using Microsoft.Extensions.Configuration;
@@ -13,112 +14,95 @@ using VMelnalksnis.NordigenDotNet.Requisitions;
 
 namespace BS.Logic;
 
-public class Application
+public class Application(
+    ILogger<Application> logger,
+    RequisitionService requisitionService,
+    IConfiguration configuration,
+    ExpenseService expenseService,
+    EndUserAgreementService endUserAgreementService,
+    AiCategoryGuesserService categoryGuesser,
+    IOpenAIService openAiService,
+    WorkbookService workbookService,
+    MailSenderService mailSenderService,
+    AccountService accountService)
 {
-    private readonly AccountService _accountService;
-    private readonly ExpenseService _expenseService;
-    private readonly EndUserAgreementService _endUserAgreementService;
-    private readonly AiCategoryGuesserService _categoryGuesser;
-    private readonly IOpenAIService _openAiService;
-    private readonly ILogger<Application> _logger;
-    private readonly RequisitionService _requisitionService;
-    private readonly IConfiguration _configuration;
-    private readonly WorkbookService _workbookService;
-
-    public Application(
-        ILogger<Application> logger,
-        RequisitionService requisitionService,
-        IConfiguration configuration,
-        ExpenseService expenseService,
-        EndUserAgreementService endUserAgreementService,
-        AiCategoryGuesserService categoryGuesser,
-        IOpenAIService openAiService,
-        WorkbookService workbookService,
-        AccountService accountService
-    )
-    {
-        _logger = logger;
-        _requisitionService = requisitionService;
-        _configuration = configuration;
-        _expenseService = expenseService;
-        _endUserAgreementService = endUserAgreementService;
-        _categoryGuesser = categoryGuesser;
-        _openAiService = openAiService;
-        _workbookService = workbookService;
-        _accountService = accountService;
-    }
-
     public async Task Run()
     {
         var accounts = new HashSet<Guid>();
-        var reqs = _requisitionService.GetAll();
+        var reqs = requisitionService.GetAll();
 
         await foreach (Requisition req in reqs)
         {
             if (req.Status != RequisitionStatus.Ln)
             {
-                _logger.LogWarning($"Skipping requisition with id: {req.Id}, {req.InstitutionId}");
-                _logger.LogInformation($"Status: {req.Status}, Link: {req.Link}");
+                logger.LogWarning($"Skipping requisition with id: {req.Id}, {req.InstitutionId}");
+                logger.LogInformation($"Status: {req.Status}, Link: {req.Link}");
+                if (req.Status == RequisitionStatus.Cr)
+                {
+                    await mailSenderService.SendMail("Banksync authorisation required",
+                        $"Requisition {req.Id} is in status {req.Status}, please check {req.Link}", configuration["Mail:To"]);
+                }
+
                 continue;
             }
 
             // Handle other types later
-            _logger.LogInformation($"Processing requisition with id: {req.Id}, {req.InstitutionId}");
+            logger.LogInformation($"Processing requisition with id: {req.Id}, {req.InstitutionId}");
             foreach (Guid reqAccount in req.Accounts) accounts.Add(reqAccount);
         }
 
-        _logger.LogInformation($"Loaded {accounts.Count} accounts");
+        logger.LogInformation($"Loaded {accounts.Count} accounts");
 
-        var filePath = _configuration["FilePaths:Expenses"];
-        _workbookService.OpenWorkBook(filePath);
+        var filePath = configuration["FilePaths:Expenses"];
+        workbookService.OpenWorkBook(filePath);
 
         var transactions = new List<Expense>();
         foreach (Guid accountGuid in accounts)
         {
-            Account account = await _accountService.Get(accountGuid);
+            Account account = await accountService.Get(accountGuid);
             try
             {
-                var accountTransactions = await _accountService.GetTransactions(accountGuid);
+                var accountTransactions = await accountService.GetTransactions(accountGuid);
                 if (accountTransactions.Count == 0)
                 {
-                    _logger.LogWarning($"No transactions for account {account.InstitutionId} {account.Iban}");
+                    logger.LogWarning($"No transactions for account {account.InstitutionId} {account.Iban}");
                     continue;
                 }
 
-                _logger.LogInformation($"Found {accountTransactions.Count} transactions for account {account.InstitutionId} {accountGuid}");
-                transactions.AddRange(accountTransactions.Select(x => _expenseService.CreateExpense(x, account.InstitutionId)));
+                logger.LogInformation($"Found {accountTransactions.Count} transactions for account {account.InstitutionId} {accountGuid}");
+                transactions.AddRange(accountTransactions.Select(x => expenseService.CreateExpense(x, account.InstitutionId)));
             }
             catch (HttpRequestException e)
             {
-                _logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
-                _logger.LogError(e.Message);
+                logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
+                logger.LogError(e.Message);
                 if (e.StatusCode == HttpStatusCode.Conflict)
                 {
                     await foreach (Requisition req in reqs)
                     {
                         if (req.Accounts.Contains(accountGuid))
                         {
-                            _logger.LogWarning($"To enable account {account.InstitutionId} {account.Iban} please visit {req.Link}");
+                            logger.LogWarning($"To enable account {account.InstitutionId} {account.Iban} please visit {req.Link}");
                         }
                     }
                 }
             }
             catch (Exception e)
             {
-                _logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
-                _logger.LogError(e.Message);
+                logger.LogError($"Error for account {account.InstitutionId} {account.Iban}");
+                logger.LogError(e.Message);
             }
         }
 
-        _logger.LogInformation($"Found a total of {transactions.Count} transactions");
-        transactions = _workbookService.RemoveDuplicates(transactions).ToList();
-        _logger.LogInformation($"Found a total of {transactions.Count} new transactions");
+        logger.LogInformation($"Found a total of {transactions.Count} transactions");
+        transactions = workbookService.RemoveDuplicates(transactions).ToList();
+        logger.LogInformation($"Found a total of {transactions.Count} new transactions");
         foreach (Expense transaction in transactions)
         {
-            var category = await _categoryGuesser.Guess(transaction);
+            var category = await categoryGuesser.Guess(transaction);
             if (category.HasValue)
             {
-                _logger.LogInformation($"Transaction {transaction.Name} has category {category}");
+                logger.LogInformation($"Transaction {transaction.Name} has category {category}");
                 transaction.Category = JsonConvert.SerializeObject(category, new StringEnumConverter()).Replace("\"", "");
             }
             else
@@ -130,32 +114,32 @@ public class Application
 
         var perYear = transactions.OrderBy(x => x.Date).GroupBy(x => x.Date.Value.Year);
         foreach (var grouping in perYear)
-            _workbookService.WriteTransactions(grouping, _workbookService.GetWorksheet(grouping.Key.ToString()));
+            workbookService.WriteTransactions(grouping, workbookService.GetWorksheet(grouping.Key.ToString()));
 
-        _logger.LogInformation("Saving and closing workbook");
-        _workbookService.SaveAndClose();
+        logger.LogInformation("Saving and closing workbook");
+        workbookService.SaveAndClose();
 
-        _logger.LogInformation("Done");
+        logger.LogInformation("Done");
     }
 
     public async Task Tst()
     {
-        await AiFineTuneService.Test(_openAiService);
+        await AiFineTuneService.Test(openAiService);
     }
 
     public async Task CreateNewAccCheck()
     {
-        var reqs = _requisitionService.GetAll();
+        var reqs = requisitionService.GetAll();
         await foreach (var requisition in reqs)
         {
             if (requisition.Status != RequisitionStatus.Ex) continue;
-            _logger.LogInformation($"Deleting requisition {requisition.Id}");
-            await _endUserAgreementService.TryDeleteEndUserAgreement(requisition.Agreement.Value);
-            await _requisitionService.Delete(requisition.Id);
+            logger.LogInformation($"Deleting requisition {requisition.Id}");
+            await endUserAgreementService.TryDeleteEndUserAgreement(requisition.Agreement.Value);
+            await requisitionService.Delete(requisition.Id);
 
-            _logger.LogInformation($"Creating new requisition and end user agreement for institution {requisition.InstitutionId}");
-            var eua = await _endUserAgreementService.CreateEndUserAgreement(requisition.InstitutionId);
-            await _requisitionService.New(requisition.InstitutionId, requisition.InstitutionId + $"{new DateTime():yyyy-MM-dd}", eua.Id);
+            logger.LogInformation($"Creating new requisition and end user agreement for institution {requisition.InstitutionId}");
+            var eua = await endUserAgreementService.CreateEndUserAgreement(requisition.InstitutionId);
+            await requisitionService.New(requisition.InstitutionId, requisition.InstitutionId + $"{DateTime.Now:yyyy-MM-dd}", eua.Id);
         }
         // await _endUserAgreementService.DeleteAllEndUserAgreements();
         // await _requisitionService.DeleteAllRequisitions();
