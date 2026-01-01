@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Mail;
+using BS.Data;
 using BS.Logic;
 using BS.Logic.CategoryGuesser;
 using BS.Logic.Mailing;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
+using EnableBanking;
 using FluentEmail.Smtp;
 using NodaTime;
 using OpenAI.Extensions;
@@ -28,6 +30,12 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<CategoryLearnerService, CategoryLearnerService>();
         services.AddTransient<AiCategoryGuesserService, AiCategoryGuesserService>();
         services.AddTransient<MailSenderService, MailSenderService>();
+        services.AddTransient<SessionKeyStore, SessionKeyStore>();
+        services.AddEnableBankingApi(options =>
+        {
+            options.KeyPath = ctx.Configuration["EnableBanking:KeyPath"] ?? "enablebanking.key";
+            options.AppKid = ctx.Configuration["EnableBanking:AppKid"] ?? "your-app-kid";
+        });
         services
             .AddFluentEmail(ctx.Configuration["Mail:From"], "BankSync")
             .AddSmtpSender(new SmtpClient()
@@ -52,18 +60,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     })
     .Build();
 
-// string[] arguments = Environment.GetCommandLineArgs();
-//
-// if (arguments.Length > 1)
-// {
-//     if (arguments[1] == "learn")
-//     {
-//         var learner = host.Services.GetRequiredService<CategoryLearnerService>();
-//         learner.RunExpenseLearner();
-//         return;
-//     }
-// }
 
 var app = host.Services.GetRequiredService<Application>();
-await app.CreateNewAccCheck();
+// await app.CreateNewAccCheck();
 await app.Run();

@@ -22,4 +22,11 @@
     <ItemGroup>
         <ProjectReference Include="..\BS.Logic\BS.Logic.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="4a77f9d9-84e2-448e-a9bd-01075cb9ddc7.pem" />
+      <Resource Include="4a77f9d9-84e2-448e-a9bd-01075cb9ddc7.pem">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Resource>
+    </ItemGroup>
 </Project>

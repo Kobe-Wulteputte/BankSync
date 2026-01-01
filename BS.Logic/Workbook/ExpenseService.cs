@@ -25,4 +25,12 @@ public class ExpenseService
             Id = transaction.EntryReference ?? transaction.TransactionId
         };
     }
+
+    public Expense CreateExpense(EnableBanking.Models.Accounts.Transaction transaction)
+    {
+        return new Expense()
+        {
+            Id = transaction.TransactionId,
+        };
+    }
 }
