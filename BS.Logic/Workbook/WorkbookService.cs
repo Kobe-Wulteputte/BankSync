@@ -20,9 +20,10 @@ public class WorkbookService
             throw new Exception("Workbook was not initialized before use");
     }
 
-    public void OpenWorkBook(string filePath)
+    public bool OpenWorkBook(string filePath)
     {
         _wb = new XLWorkbook(filePath);
+        return _wb != null;
     }
 
     public void SaveAndClose()

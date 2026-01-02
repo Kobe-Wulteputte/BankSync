@@ -4,7 +4,7 @@ public class Expense
 {
     public string Type { get; set; }
     public decimal Amount { get; set; }
-    public DateTime? Date { get; set; }
+    public DateTime Date { get; set; }
     public string Account { get; set; }
     public string Name { get; set; }
     public string Category { get; set; }
@@ -14,5 +14,5 @@ public class Expense
     public string Id { get; set; }
 
     public string AiPrompt =>
-        $"Type: {Type}, Amount: {Amount}, Date: {Date.Value:dd-MM-yyyy}, Name: {Name}, Description: {Description} ->";
+        $"Type: {Type}, Amount: {Amount}, Date: {Date:dd-MM-yyyy}, Name: {Name}, Description: {Description} ->";
 }

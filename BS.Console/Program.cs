@@ -20,17 +20,18 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<Application, Application>();
         services.AddSingleton<IClock>(SystemClock.Instance);
         services.AddSingleton(DateTimeZoneProviders.Tzdb);
-        services.AddTransient<InstitutionService, InstitutionService>();
-        services.AddTransient<RequisitionService, RequisitionService>();
-        services.AddTransient<AccountService, AccountService>();
-        services.AddTransient<EndUserAgreementService, EndUserAgreementService>();
-        services.AddTransient<WorkbookService, WorkbookService>();
-        services.AddTransient<ExpenseService, ExpenseService>();
-        services.AddTransient<CategoryGuesserService, CategoryGuesserService>();
-        services.AddTransient<CategoryLearnerService, CategoryLearnerService>();
-        services.AddTransient<AiCategoryGuesserService, AiCategoryGuesserService>();
-        services.AddTransient<MailSenderService, MailSenderService>();
-        services.AddTransient<SessionKeyStore, SessionKeyStore>();
+        services.AddTransient<InstitutionService>();
+        services.AddTransient<RequisitionService>();
+        services.AddTransient<AccountService>();
+        services.AddTransient<EndUserAgreementService>();
+        services.AddTransient<WorkbookService>();
+        services.AddTransient<ExpenseService>();
+        services.AddTransient<CategoryGuesserService>();
+        services.AddTransient<CategoryLearnerService>();
+        services.AddTransient<AiCategoryGuesserService>();
+        services.AddTransient<MailSenderService>();
+        services.AddTransient<GoCardlessService>();
+        services.AddTransient<SessionKeyStore>();
         services.AddEnableBankingApi(options =>
         {
             options.KeyPath = ctx.Configuration["EnableBanking:KeyPath"] ?? "enablebanking.key";
