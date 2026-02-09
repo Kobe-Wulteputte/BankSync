@@ -38,14 +38,19 @@ public class ExpenseService
         DateTime.TryParse(transaction.BookingDate, out DateTime bookingDate);
         if (bookingDate == DateTime.MinValue) bookingDate = DateTime.UtcNow;
         var date = DateTime.Compare(valueDate, bookingDate) < 0 ? valueDate : bookingDate;
-        
+
         var direction = transaction.CreditDebitIndicator == "DBIT" ? -1 : 1;
 
         var description = transaction.RemittanceInformation?.Aggregate("", (current, info) => current + info + " ") ?? "";
-        var name = transaction.Debtor?.Name ?? transaction.Creditor?.Name ?? "";
+        description = description.Trim();
+        var name = direction == -1 ? transaction.Creditor?.Name : transaction.Debtor?.Name;
         if (string.IsNullOrEmpty(name))
         {
             name = description;
+        }
+
+        if (name == description)
+        {
             description = "";
         }
 
@@ -56,7 +61,8 @@ public class ExpenseService
             Name = name,
             Amount = amount * direction,
             Account = transaction.DebtorAccount?.Iban ?? transaction.CreditorAccount?.Iban ?? "",
-            Description = description + "(" + transaction.BankTransactionCode?.Code + ")",
+            Description = description + "(" + transaction.BankTransactionCode?.Code + " " + transaction.DebtorAccountAdditionalIdentification?[0]?.Identification +
+                          transaction.CreditorAccountAdditionalIdentification?[0]?.Identification + ")",
             Date = date,
             Reimbursed = false,
             Category = "",
