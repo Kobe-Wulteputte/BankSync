@@ -6,6 +6,14 @@
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
       }
+    },
+    "GenerateTrainingData": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "commandLineArgs": "GenerateTrainingData",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
     }
   }
 }

@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Betalgo.OpenAI" Version="8.6.2" />
+        <PackageReference Include="Betalgo.Ranul.OpenAI" Version="9.2.6" />
         <PackageReference Include="ClosedXML" Version="0.102.3" />
         <PackageReference Include="FluentEmail.Smtp" Version="3.0.2" />
         <PackageReference Include="Going.Plaid" Version="6.29.0" />

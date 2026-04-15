@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using Betalgo.Ranul.OpenAI.Extensions;
 using BS.Data;
 using BS.Logic;
 using BS.Logic.CategoryGuesser;
@@ -7,9 +8,7 @@ using BS.Logic.Mailing;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
 using EnableBanking;
-using FluentEmail.Smtp;
 using NodaTime;
-using OpenAI.Extensions;
 using Serilog;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
@@ -26,6 +25,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<EndUserAgreementService>();
         services.AddTransient<WorkbookService>();
         services.AddTransient<ExpenseService>();
+        services.AddTransient<TrainingDataService>();
         services.AddTransient<CategoryGuesserService>();
         services.AddTransient<CategoryLearnerService>();
         services.AddTransient<AiCategoryGuesserService>();
@@ -63,4 +63,13 @@ IHost host = Host.CreateDefaultBuilder(args)
 
 
 var app = host.Services.GetRequiredService<Application>();
-await app.Run();
+
+if (args.Contains("GenerateTrainingData"))
+{
+    var trainingDataService = host.Services.GetRequiredService<TrainingDataService>();
+    trainingDataService.GenerateTrainingData();
+}
+else
+{
+    await app.Run();
+}

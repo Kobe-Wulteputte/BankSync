@@ -1,9 +1,9 @@
-﻿using BS.Data;
+﻿using Betalgo.Ranul.OpenAI.Interfaces;
+using Betalgo.Ranul.OpenAI.ObjectModels.RequestModels;
+using BS.Data;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using OpenAI.Interfaces;
-using OpenAI.ObjectModels.RequestModels;
 
 namespace BS.Logic.CategoryGuesser;
 
@@ -44,7 +44,7 @@ public class AiCategoryGuesserService
 
         var logprob = completionResult.Choices.FirstOrDefault().LogProbs.TokenLogProbs.FirstOrDefault();
         var percentage = Math.Round(Math.Pow(Math.E, logprob) * 100, 2);
-        var category = completionResult.Choices.FirstOrDefault().Text.Replace(" ", "").Replace("_", " ");
+        var category = completionResult.Choices.FirstOrDefault().Text.Replace(" ", "").Replace("_", " ").Replace("[", " ").Replace("]", " ");
         _logger.LogInformation($"Category: {category}");
         _logger.LogInformation($"Percentage: {percentage}%");
 

@@ -14,5 +14,13 @@ public class Expense
     public string Id { get; set; }
 
     public string AiPrompt =>
-        $"Type: {Type}, Amount: {Amount}, Date: {Date:dd-MM-yyyy}, Name: {Name}, Description: {Description} ->";
+        $"Type: [{Type}], Amount: [{Amount}], Date: [{Date:dd-MM-yyyy}], Name: [{Clean(Name)}], Description: [{Clean(Description)}]";
+
+    private string Clean(string input)
+    {
+        var cleaned = string.IsNullOrWhiteSpace(input) ? "" : input.Trim();
+        cleaned = cleaned.Replace("\n", " ").Replace("\r", " ");
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+", " ");
+        return cleaned;
+    }
 }

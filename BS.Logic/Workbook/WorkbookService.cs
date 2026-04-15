@@ -78,7 +78,7 @@ public class WorkbookService
             .Select(x => new Expense
             {
                 Type = x.Cell(1).GetValue<string>(),
-                Amount = x.Cell(2).GetValue<decimal>(),
+                Amount = x.Cell(2).GetValue<decimal?>() ?? 0,
                 Date = x.Cell(3).GetValue<DateTime>(),
                 Account = x.Cell(4).GetValue<string>(),
                 Name = x.Cell(5).GetValue<string>(),
