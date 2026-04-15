@@ -63,5 +63,4 @@ IHost host = Host.CreateDefaultBuilder(args)
 
 
 var app = host.Services.GetRequiredService<Application>();
-// await app.CreateNewAccCheck();
 await app.Run();

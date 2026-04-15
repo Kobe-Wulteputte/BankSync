@@ -25,6 +25,7 @@ public class Application(
         logger.LogInformation("Starting application");
 
         await enableBankingService.CreateNewAccountCheck();
+        await goCardlessService.CreateNewAccCheck();
 
         try
         {
