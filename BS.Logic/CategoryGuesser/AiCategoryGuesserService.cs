@@ -1,56 +1,61 @@
-﻿using Betalgo.Ranul.OpenAI.Interfaces;
+﻿using Betalgo.Ranul.OpenAI.Contracts.Enums;
+using Betalgo.Ranul.OpenAI.Interfaces;
 using Betalgo.Ranul.OpenAI.ObjectModels.RequestModels;
 using BS.Data;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
 namespace BS.Logic.CategoryGuesser;
 
-public class AiCategoryGuesserService
+public class AiCategoryGuesserService(IOpenAIService openAiService, ILogger<AiCategoryGuesserService> logger, IConfiguration config)
 {
-    private readonly IOpenAIService _openAiService;
-    private readonly ILogger<AiCategoryGuesserService> _logger;
-
-    public AiCategoryGuesserService(IOpenAIService openAiService, ILogger<AiCategoryGuesserService> logger)
+    private string GetModel()
     {
-        _openAiService = openAiService;
-        _logger = logger;
-    }
-
-    private async Task<string> GetModel()
-    {
-        // var models = await _openAiService.FineTunes.ListFineTunes();
-        return "ft:davinci-002:personal::8r1b6emw";
+        return config["OpenAIServiceOptions:Model"] ?? throw new InvalidOperationException("OpenAIServiceOptions:Model is not configured");
     }
 
     public async Task<CategoryEnum?> Guess(Expense expense)
     {
-        _logger.LogInformation($"Guessing category for {expense.Name}");
-        var completionResult = await _openAiService.Completions.CreateCompletion(new CompletionCreateRequest
+        logger.LogInformation($"Guessing category for {expense.Name}");
+        var completionResult = await openAiService.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
         {
             MaxTokens = 10,
-            Prompt = expense.AiPrompt,
-            Model = await GetModel(),
+            Messages = new List<ChatMessage>
+            {
+                new()
+                {
+                    Role = ChatCompletionRole.System,
+                    Content =
+                        $"You categorize bank transactions. Reply with exactly one of these categories: {string.Join(", ", Enum.GetNames<CategoryEnum>())}."
+                },
+                new()
+                {
+                    Role = ChatCompletionRole.User,
+                    Content = expense.AiPrompt
+                }
+            },
+            Model = GetModel(),
             Stop = " END",
             Temperature = 0,
-            LogProbs = 1
+            LogProbs = true
         });
         if (!completionResult.Successful)
         {
-            _logger.LogError($"Aicompletion not successful. Error: {completionResult.Error}");
+            logger.LogError($"Aicompletion not successful. Error: {completionResult.Error}");
             return null;
         }
 
-        var logprob = completionResult.Choices.FirstOrDefault().LogProbs.TokenLogProbs.FirstOrDefault();
+        var logprob = completionResult.Choices.First().LogProbs.Content.Sum(resp => resp.LogProb);
         var percentage = Math.Round(Math.Pow(Math.E, logprob) * 100, 2);
-        var category = completionResult.Choices.FirstOrDefault().Text.Replace(" ", "").Replace("_", " ").Replace("[", " ").Replace("]", " ");
-        _logger.LogInformation($"Category: {category}");
-        _logger.LogInformation($"Percentage: {percentage}%");
+        var category = completionResult.Choices.First().Message.Content.Replace(" ", "").Replace("_", " ").Replace("[", " ").Replace("]", " ");
+        logger.LogInformation($"Category: {category}");
+        logger.LogInformation($"Percentage: {percentage}%");
 
         if (percentage < 60)
         {
-            _logger.LogInformation($"Percentage too low, not guessing category for {expense.Name}");
+            logger.LogInformation($"Percentage too low, not guessing category for {expense.Name}");
             return null;
         }
 
