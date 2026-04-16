@@ -53,7 +53,7 @@ public class TrainingDataService(
     {
         using var writer = new StreamWriter(outputPath, append: false);
         var categoryList = string.Join(", ", Enum.GetNames<CategoryEnum>());
-        var systemMessage = $"You are an assistant that categorizes bank transactions. " +
+        var systemMessage = $"You categorize bank transactions. " +
                             $"Reply with exactly one of these categories: {categoryList}.";
         foreach (var expense in expenses)
         {
