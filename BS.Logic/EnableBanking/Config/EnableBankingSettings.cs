@@ -21,17 +21,33 @@ public sealed class EnableBankingSettings
     /// </summary>
     public void NormalizeAndValidate()
     {
+        if (string.IsNullOrWhiteSpace(AppKid))
+            throw new InvalidOperationException("EnableBanking:AppKid is not configured.");
+
+        if (string.IsNullOrWhiteSpace(KeyPath))
+            throw new InvalidOperationException("EnableBanking:KeyPath is not configured.");
+
         var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var bank in Banks)
+        for (var index = 0; index < Banks.Count; index++)
         {
+            var bank = Banks[index];
+
             if (string.IsNullOrWhiteSpace(bank.Name))
-                throw new InvalidOperationException("EnableBanking:Banks contains an entry with no Name.");
+                throw new InvalidOperationException($"EnableBanking:Banks[{index}] has no Name.");
 
             if (string.IsNullOrWhiteSpace(bank.Country))
                 throw new InvalidOperationException($"EnableBanking:Banks entry '{bank.Name}' has no Country.");
 
-            bank.Ibans = bank.Ibans.Select(NormalizeIban).Where(iban => iban.Length > 0).ToList();
+            bank.Ibans = bank.Ibans.Select(raw =>
+            {
+                var normalized = NormalizeIban(raw);
+                if (normalized.Length == 0)
+                    throw new InvalidOperationException(
+                        $"EnableBanking:Banks entry '{bank.Name}' has an invalid IBAN: '{raw}'.");
+
+                return normalized;
+            }).ToList();
 
             if (bank.Ibans.Count == 0)
                 throw new InvalidOperationException($"EnableBanking:Banks entry '{bank.Name}' has no Ibans.");
@@ -56,7 +72,7 @@ public sealed class EnableBankingSettings
 
     /// <summary>Strips spaces and punctuation and uppercases, so config formatting cannot cause a silent mismatch.</summary>
     public static string NormalizeIban(string? iban) =>
-        new string((iban ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        new string((iban ?? "").Where(char.IsAsciiLetterOrDigit).ToArray()).ToUpperInvariant();
 }
 
 public sealed class BankSettings
