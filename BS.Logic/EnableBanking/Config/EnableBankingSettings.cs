@@ -33,6 +33,9 @@ public sealed class EnableBankingSettings
         {
             var bank = Banks[index];
 
+            bank.Name = bank.Name.Trim();
+            bank.Country = bank.Country.Trim();
+
             if (string.IsNullOrWhiteSpace(bank.Name))
                 throw new InvalidOperationException($"EnableBanking:Banks[{index}] has no Name.");
 

@@ -181,22 +181,25 @@ public class EnableBankingService(
 
         foreach (var bank in _settings.Banks)
         {
-            var session = sessions.FirstOrDefault(stored =>
-                string.Equals(stored.Bank, bank.Name, StringComparison.OrdinalIgnoreCase));
+            var bankSessions = sessions
+                .Where(stored => string.Equals(stored.Bank, bank.Name, StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-            if (session == null)
+            if (bankSessions.Count == 0)
             {
                 logger.LogWarning("{Bank}: no stored session. Run `BankSync Connect`.", bank.Name);
                 continue;
             }
 
-            // Deliberately no renewal buffer here (unlike ConnectAsync's RenewBeforeDays cutoff):
-            // a session that is still technically valid is used as-is for an unattended sync,
-            // proactive renewal is ConnectAsync's job.
-            if (session.ValidUntil.HasValue && session.ValidUntil.Value < DateTime.UtcNow)
+            // Deliberately no renewal buffer here — a session is usable right up to its expiry.
+            // The RenewBeforeDays buffer is a ConnectAsync concern, not a usability one.
+            var usableSessions = bankSessions
+                .Where(stored => !stored.ValidUntil.HasValue || stored.ValidUntil.Value >= DateTime.UtcNow)
+                .ToList();
+
+            if (usableSessions.Count == 0)
             {
-                logger.LogWarning("{Bank}: session expired on {ValidUntil}. Run `BankSync Connect`.",
-                    bank.Name, session.ValidUntil);
+                logger.LogWarning("{Bank}: all stored session(s) expired. Run `BankSync Connect`.", bank.Name);
                 continue;
             }
 
@@ -204,13 +207,13 @@ public class EnableBankingService(
 
             foreach (var iban in bank.Ibans)
             {
-                var account = session.Accounts.FirstOrDefault(stored =>
-                    string.Equals(stored.Iban, iban, StringComparison.OrdinalIgnoreCase));
+                var account = usableSessions
+                    .SelectMany(stored => stored.Accounts)
+                    .FirstOrDefault(stored => string.Equals(stored.Iban, iban, StringComparison.OrdinalIgnoreCase));
 
                 if (account == null)
                 {
-                    logger.LogWarning("{Bank}: session {SessionId} does not cover {Iban}. Run `BankSync Connect`.",
-                        bank.Name, session.SessionId, iban);
+                    logger.LogWarning("{Bank}: no stored session covers {Iban}. Run `BankSync Connect`.", bank.Name, iban);
                     continue;
                 }
 
@@ -304,27 +307,29 @@ public class EnableBankingService(
 
         foreach (var bank in _settings.Banks)
         {
-            var existing = live.FirstOrDefault(session =>
-                string.Equals(session.Bank, bank.Name, StringComparison.OrdinalIgnoreCase));
+            var existingForBank = live
+                .Where(session => string.Equals(session.Bank, bank.Name, StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
-            var covered = existing?.Accounts
+            var covered = existingForBank
+                .SelectMany(session => session.Accounts)
                 .Select(account => account.Iban)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var missing = bank.Ibans.Where(iban => !covered.Contains(iban)).ToList();
 
             if (missing.Count == 0)
             {
-                logger.LogInformation("{Bank}: all {Count} configured account(s) already covered by session {SessionId}.",
-                    bank.Name, bank.Ibans.Count, existing!.SessionId);
+                logger.LogInformation("{Bank}: all {Count} configured account(s) already covered by {Sessions} session(s).",
+                    bank.Name, bank.Ibans.Count, existingForBank.Count);
                 continue;
             }
 
-            await AuthorizeBankAsync(bank, existing);
+            await AuthorizeBankAsync(bank, existingForBank);
         }
     }
 
-    private async Task AuthorizeBankAsync(BankSettings bank, BankSession? existing)
+    private async Task AuthorizeBankAsync(BankSettings bank, List<BankSession> superseded)
     {
         var validityDays = bank.ConsentValidityDays ?? _settings.ConsentValidityDays;
 
@@ -390,18 +395,16 @@ public class EnableBankingService(
                 bank.Name, string.Join(", ", uncovered));
         }
 
-        if (existing == null)
+        foreach (var oldSession in superseded.Where(session => session.SessionId != record.SessionId))
         {
-            return;
-        }
+            var deleted = await enableSessionsService.DeleteSessionAsync(
+                new DeleteSessionRequest { SessionId = oldSession.SessionId }, CancellationToken.None);
 
-        var deleted = await enableSessionsService.DeleteSessionAsync(
-            new DeleteSessionRequest { SessionId = existing.SessionId }, CancellationToken.None);
-
-        if (deleted.Error != null)
-        {
-            logger.LogWarning("{Bank}: could not delete superseded session {SessionId}: {Message}",
-                bank.Name, existing.SessionId, deleted.Error.Message);
+            if (deleted.Error != null)
+            {
+                logger.LogWarning("{Bank}: could not delete superseded session {SessionId}: {Message}",
+                    bank.Name, oldSession.SessionId, deleted.Error.Message);
+            }
         }
     }
 }
