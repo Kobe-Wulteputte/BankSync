@@ -34,6 +34,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<MailSenderService>();
         services.AddTransient<GoCardlessService>();
         services.AddTransient<SessionKeyStore>();
+        services.AddTransient<PendingAuthorizationStore>();
         var enableBankingSettings = new EnableBankingSettings();
         ctx.Configuration.GetSection("EnableBanking").Bind(enableBankingSettings);
         enableBankingSettings.NormalizeAndValidate();
@@ -83,5 +84,7 @@ else if (args.Contains("GenerateTrainingData"))
 }
 else
 {
-    await app.Run();
+    // Transaction retrieval is opt-in: the ASPSPs rate-limit it, so a debug run should only do the
+    // session check and email any authorization links that are needed.
+    await app.Run(loadTransactions: args.Contains("LoadTransactions"));
 }

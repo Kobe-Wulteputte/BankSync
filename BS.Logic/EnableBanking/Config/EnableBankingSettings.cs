@@ -20,6 +20,13 @@ public sealed class EnableBankingSettings
     /// <summary>A session this close to expiry is treated as needing re-authorization.</summary>
     public int RenewBeforeDays { get; set; } = 1;
 
+    /// <summary>
+    /// How long an emailed authorization link is considered outstanding. While one is outstanding
+    /// the console will not email that bank again; past this age it is discarded and a fresh link
+    /// generated, since Enable Banking authorization links do not stay valid indefinitely.
+    /// </summary>
+    public int AuthorizationLinkTtlHours { get; set; } = 24;
+
     public List<BankSettings> Banks { get; set; } = [];
 
     /// <summary>

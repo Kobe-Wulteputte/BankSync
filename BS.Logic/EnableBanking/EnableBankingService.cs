@@ -19,6 +19,7 @@ public class EnableBankingService(
     IAccountsService enableAccountService,
     ExpenseService expenseService,
     SessionKeyStore sessionKeyStore,
+    PendingAuthorizationStore pendingAuthorizationStore,
     IOptions<EnableBankingSettings> settings,
     IConfiguration configuration,
     ILogger<EnableBankingService> logger)
@@ -339,6 +340,21 @@ public class EnableBankingService(
 
         sessionKeyStore.SaveSessions(live);
 
+        foreach (var (bank, existingForBank) in FindBanksNeedingAuthorization(live))
+        {
+            await AuthorizeBankAsync(bank, existingForBank);
+        }
+    }
+
+    /// <summary>
+    /// Works out which configured banks still need an authorization, pairing each with the
+    /// sessions it already has so they can be superseded once a new one succeeds. Shared by the
+    /// interactive Connect flow and the unattended email flow so the two cannot drift apart.
+    /// </summary>
+    private List<(BankSettings Bank, List<BankSession> Existing)> FindBanksNeedingAuthorization(List<BankSession> live)
+    {
+        var needed = new List<(BankSettings, List<BankSession>)>();
+
         foreach (var bank in _settings.Banks)
         {
             var existingForBank = live
@@ -369,13 +385,180 @@ public class EnableBankingService(
                 continue;
             }
 
-            await AuthorizeBankAsync(bank, existingForBank);
+            needed.Add((bank, existingForBank));
         }
+
+        return needed;
     }
 
-    private async Task AuthorizeBankAsync(BankSettings bank, List<BankSession> superseded)
+    /// <summary>
+    /// Unattended counterpart to <see cref="ConnectAsync"/>. Starts an authorization for every bank
+    /// that needs one and returns the links to email, without ever blocking on console input.
+    /// A bank with an authorization link still outstanding is skipped so repeated runs do not
+    /// produce repeated mail.
+    /// </summary>
+    public async Task<List<PendingAuthorization>> PrepareAuthorizationsAsync()
+    {
+        if (_settings.Banks.Count == 0)
+        {
+            logger.LogInformation("No banks configured under EnableBanking:Banks; nothing to check.");
+            return [];
+        }
+
+        if (!await ValidateConnection())
+        {
+            return [];
+        }
+
+        var sessions = await LoadSessionsAsync(verifyAll: true);
+
+        var cutoff = DateTime.UtcNow.AddDays(_settings.RenewBeforeDays);
+        var live = sessions
+            .Where(session => !session.ValidUntil.HasValue || session.ValidUntil.Value >= cutoff)
+            .ToList();
+
+        foreach (var expiring in sessions.Except(live))
+        {
+            logger.LogInformation("{Bank}: session {SessionId} expires {ValidUntil}; it will be replaced.",
+                expiring.Bank, expiring.SessionId, expiring.ValidUntil);
+        }
+
+        sessionKeyStore.SaveSessions(live);
+
+        var staleBefore = DateTime.UtcNow.AddHours(-_settings.AuthorizationLinkTtlHours);
+        var outstanding = pendingAuthorizationStore.GetAll()
+            .Where(authorization => authorization.CreatedUtc >= staleBefore)
+            .ToList();
+
+        var created = new List<PendingAuthorization>();
+        var needingAuthorization = FindBanksNeedingAuthorization(live);
+
+        foreach (var (bank, _) in needingAuthorization)
+        {
+            var alreadySent = outstanding.FirstOrDefault(authorization =>
+                string.Equals(authorization.Bank, bank.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (alreadySent != null)
+            {
+                logger.LogInformation("{Bank}: authorization link already sent {Created:u}; not sending again yet.",
+                    bank.Name, alreadySent.CreatedUtc);
+                continue;
+            }
+
+            var url = await StartAuthorizationAsync(bank);
+            if (url == null)
+            {
+                continue;
+            }
+
+            var authorization = new PendingAuthorization
+            {
+                State = url.Value.State,
+                Bank = bank.Name,
+                Country = bank.Country,
+                Url = url.Value.Url,
+                CreatedUtc = DateTime.UtcNow
+            };
+
+            outstanding.Add(authorization);
+            created.Add(authorization);
+
+            logger.LogWarning("{Bank}: needs authorization.", bank.Name);
+        }
+
+        // Banks no longer needing authorization drop their outstanding link, so a session
+        // completed by other means does not leave a stale entry suppressing future mail.
+        var stillNeeded = needingAuthorization
+            .Select(pair => pair.Bank.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        pendingAuthorizationStore.SaveAll(outstanding
+            .Where(authorization => stillNeeded.Contains(authorization.Bank))
+            .ToList());
+
+        return created;
+    }
+
+    /// <summary>
+    /// Completes an authorization from a redirect callback: verifies the returned state, exchanges
+    /// the code, stores the session and retires whatever that bank had before.
+    /// </summary>
+    public async Task<AuthorizationResult> CompleteAuthorizationAsync(string? code, string? state)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return AuthorizationResult.Failed("No authorization code was supplied.");
+        }
+
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            return AuthorizationResult.Failed("No state was supplied.");
+        }
+
+        var pending = pendingAuthorizationStore.GetAll()
+            .FirstOrDefault(authorization => authorization.State == state);
+
+        if (pending == null)
+        {
+            // Rejecting rather than trusting the code keeps a stray request to this endpoint from
+            // creating a session. Legitimate callbacks always carry a state we generated.
+            logger.LogWarning("Rejected callback with unknown state {State}.", state);
+            return AuthorizationResult.Failed("This authorization link is unknown or has already been used.");
+        }
+
+        var bank = _settings.Banks.FirstOrDefault(configured =>
+            string.Equals(configured.Name, pending.Bank, StringComparison.OrdinalIgnoreCase));
+
+        if (bank == null)
+        {
+            pendingAuthorizationStore.RemoveByState(state);
+            return AuthorizationResult.Failed($"'{pending.Bank}' is no longer configured under EnableBanking:Banks.");
+        }
+
+        var authorized = await enableSessionsService.AuthorizeSessionAsync(
+            new AuthorizeSessionRequest { Code = code.Trim() }, CancellationToken.None);
+
+        if (authorized.Error != null || authorized.Data?.SessionId == null)
+        {
+            var message = authorized.Error?.Message ?? "no session id returned";
+            logger.LogError("{Bank}: authorization failed: {Message}", bank.Name, message);
+            return AuthorizationResult.Failed($"{bank.Name}: authorization failed. {message}");
+        }
+
+        var record = ToRecord(authorized.Data, bank);
+        var superseded = sessionKeyStore.GetSessions()
+            .Where(session => string.Equals(session.Bank, bank.Name, StringComparison.OrdinalIgnoreCase)
+                              && session.SessionId != record.SessionId)
+            .ToList();
+
+        sessionKeyStore.AddOrReplace(record);
+        pendingAuthorizationStore.RemoveByState(state);
+
+        logger.LogInformation("{Bank}: session {SessionId} created covering {Count} account(s).",
+            bank.Name, record.SessionId, record.Accounts.Count);
+
+        await DeleteSupersededAsync(bank, superseded, record.SessionId);
+
+        if (record.Accounts.Count == 0)
+        {
+            // Seen when the ASPSP has not been linked to the Enable Banking profile: the session
+            // authorizes cleanly but exposes nothing.
+            return AuthorizationResult.Succeeded(bank.Name, 0,
+                $"{bank.Name} authorized, but the session exposes no accounts. Check that {bank.Name} is linked to your Enable Banking profile.");
+        }
+
+        return AuthorizationResult.Succeeded(bank.Name, record.Accounts.Count,
+            $"{bank.Name} authorized, covering {record.Accounts.Count} account(s).");
+    }
+
+    /// <summary>
+    /// Starts an authorization and returns the URL to visit plus the state to match the callback
+    /// against, or null if the request failed. Shared by the interactive and emailed flows.
+    /// </summary>
+    private async Task<(string Url, string State)?> StartAuthorizationAsync(BankSettings bank)
     {
         var validityDays = bank.ConsentValidityDays ?? _settings.ConsentValidityDays;
+        var state = Guid.NewGuid().ToString();
 
         var authorization = await enableGeneralService.StartAuthorizationAsync(new StartAuthorizationRequest
         {
@@ -393,7 +576,7 @@ public class EnableBankingService(
             },
             CredentialsAutosubmit = true,
             RedirectUrl = _settings.RedirectUrl,
-            State = Guid.NewGuid().ToString(),
+            State = state,
             PsuType = bank.PsuType,
             Aspsp = new Aspsp { Name = bank.Name, Country = bank.Country }
         }, CancellationToken.None);
@@ -402,18 +585,44 @@ public class EnableBankingService(
         {
             logger.LogError("{Bank}: could not start authorization: {Message}",
                 bank.Name, authorization.Error?.Message ?? "no URL returned");
+            return null;
+        }
+
+        return (authorization.Data.Url.ToString(), state);
+    }
+
+    private async Task DeleteSupersededAsync(BankSettings bank, List<BankSession> superseded, Guid newSessionId)
+    {
+        foreach (var oldSession in superseded.Where(session => session.SessionId != newSessionId))
+        {
+            var deleted = await enableSessionsService.DeleteSessionAsync(
+                new DeleteSessionRequest { SessionId = oldSession.SessionId }, CancellationToken.None);
+
+            if (deleted.Error != null)
+            {
+                logger.LogWarning("{Bank}: could not delete superseded session {SessionId}: {Message}",
+                    bank.Name, oldSession.SessionId, deleted.Error.Message);
+            }
+        }
+    }
+
+    private async Task AuthorizeBankAsync(BankSettings bank, List<BankSession> superseded)
+    {
+        var started = await StartAuthorizationAsync(bank);
+        if (started == null)
+        {
             return;
         }
 
         if (bank.SelectAccountsAtBank || bank.SyncsAllAccounts)
         {
             logger.LogInformation("{Bank}: open this URL and select the account(s) you want to sync, then paste the code from the redirect:\n{Url}",
-                bank.Name, authorization.Data.Url);
+                bank.Name, started.Value.Url);
         }
         else
         {
             logger.LogInformation("{Bank}: open this URL, authorize {Count} account(s), then paste the code from the redirect:\n{Url}",
-                bank.Name, bank.Ibans.Count, authorization.Data.Url);
+                bank.Name, bank.Ibans.Count, started.Value.Url);
         }
 
         Console.Write($"{bank.Name} code: ");
@@ -452,16 +661,15 @@ public class EnableBankingService(
                 bank.Name, string.Join(", ", uncovered));
         }
 
-        foreach (var oldSession in superseded.Where(session => session.SessionId != record.SessionId))
-        {
-            var deleted = await enableSessionsService.DeleteSessionAsync(
-                new DeleteSessionRequest { SessionId = oldSession.SessionId }, CancellationToken.None);
-
-            if (deleted.Error != null)
-            {
-                logger.LogWarning("{Bank}: could not delete superseded session {SessionId}: {Message}",
-                    bank.Name, oldSession.SessionId, deleted.Error.Message);
-            }
-        }
+        await DeleteSupersededAsync(bank, superseded, record.SessionId);
     }
+}
+
+/// <summary>Outcome of completing an authorization from a redirect callback.</summary>
+public sealed record AuthorizationResult(bool Success, string Bank, int AccountCount, string Message)
+{
+    public static AuthorizationResult Failed(string message) => new(false, string.Empty, 0, message);
+
+    public static AuthorizationResult Succeeded(string bank, int accountCount, string message) =>
+        new(true, bank, accountCount, message);
 }
