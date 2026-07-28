@@ -1,4 +1,5 @@
-﻿using BS.Data;
+﻿using System.Net;
+using BS.Data;
 using BS.Logic.CategoryGuesser;
 using BS.Logic.Mailing;
 using BS.Logic.Nordigen;
@@ -121,19 +122,15 @@ public class Application(
 
         foreach (var authorization in pending)
         {
-            var body =
-                $"""
-                 <p>BankSync needs you to re-authorize <strong>{authorization.Bank}</strong> ({authorization.Country}).</p>
-                 <p><a href="{authorization.Url}">Authorize {authorization.Bank}</a></p>
-                 <p>Make sure the BankSync callback API is running before you open the link, otherwise the
-                 redirect has nowhere to land. This link stops working after a while; if it fails, the next
-                 BankSync run will send a fresh one.</p>
-                 <p style="color:#888">{authorization.Url}</p>
-                 """;
-
             try
             {
-                await mailSenderService.SendMail($"BankSync: authorize {authorization.Bank}", body, recipient);
+                await mailSenderService.SendMail(
+                    $"BankSync: authorize {authorization.Bank}",
+                    BuildAuthorizationEmail(authorization),
+                    recipient,
+                    isHtml: true,
+                    plainTextAlternative: BuildAuthorizationEmailText(authorization));
+
                 logger.LogInformation("{Bank}: authorization link emailed to {Recipient}.", authorization.Bank, recipient);
             }
             catch (Exception e)
@@ -145,4 +142,72 @@ public class Application(
             }
         }
     }
+
+    /// <summary>
+    /// Table-based layout with inline styles throughout, because mail clients strip stylesheets and
+    /// several still have no support for modern layout. Everything is HTML-encoded: bank names and
+    /// the URL come from configuration and an external API.
+    /// </summary>
+    private static string BuildAuthorizationEmail(PendingAuthorization authorization)
+    {
+        var bank = WebUtility.HtmlEncode(authorization.Bank);
+        var country = WebUtility.HtmlEncode(authorization.Country);
+        var url = WebUtility.HtmlEncode(authorization.Url);
+
+        return $"""
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f5f7;margin:0;padding:24px 0;">
+                  <tr>
+                    <td align="center">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border:1px solid #e2e5e9;border-radius:8px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                        <tr>
+                          <td style="padding:24px 28px 0 28px;">
+                            <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#8a9099;">BankSync</div>
+                            <div style="margin-top:6px;font-size:20px;line-height:1.3;font-weight:600;color:#1b1f24;">Authorize {bank}</div>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:14px 28px 0 28px;font-size:15px;line-height:1.55;color:#3c4149;">
+                            Your {bank} ({country}) connection needs re-authorization before transactions can sync again.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:22px 28px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                              <tr>
+                                <td style="border-radius:6px;background:#1f6feb;">
+                                  <a href="{url}" style="display:inline-block;padding:11px 22px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">Authorize {bank}</a>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:0 28px 24px 28px;font-size:13px;line-height:1.55;color:#6b7280;border-top:1px solid #eef0f2;padding-top:16px;">
+                            Start the BankSync callback service before opening this link, otherwise the redirect has nowhere to land.
+                            The link stops working after a while; if it does, the next BankSync run sends a fresh one.
+                            <div style="margin-top:12px;font-size:12px;color:#9aa0a6;word-break:break-all;">{url}</div>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+                """;
+    }
+
+    /// <summary>Alternative body for clients that do not render HTML.</summary>
+    private static string BuildAuthorizationEmailText(PendingAuthorization authorization) =>
+        $"""
+         BankSync
+
+         Your {authorization.Bank} ({authorization.Country}) connection needs re-authorization
+         before transactions can sync again.
+
+         Authorize here:
+         {authorization.Url}
+
+         Start the BankSync callback service before opening this link, otherwise the redirect has
+         nowhere to land. The link stops working after a while; if it does, the next BankSync run
+         sends a fresh one.
+         """;
 }
