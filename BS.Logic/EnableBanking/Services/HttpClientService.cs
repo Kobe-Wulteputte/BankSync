@@ -6,6 +6,17 @@ namespace EnableBanking.Services
 {
     public class HttpClientService
     {
+        /// <summary>
+        /// Nulls are omitted rather than sent. Several request models reuse the fat response
+        /// metadata classes (StartAuthorizationRequest.Aspsp is the ASPSP listing type), so the
+        /// defaults would post fields like auth_methods and required_psu_headers as explicit nulls
+        /// into endpoints that never document them.
+        /// </summary>
+        private static readonly JsonSerializerSettings SerializerSettings = new()
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
         private readonly HttpClient _httpClient;
 
         public HttpClientService(HttpClient httpClient)
@@ -21,7 +32,7 @@ namespace EnableBanking.Services
 
         protected async Task<ApiResponse<T>> PostAsync<T>(string requestUri, object requestBody, CancellationToken cancellationToken)
         {
-            var jsonContent = JsonConvert.SerializeObject(requestBody);
+            var jsonContent = JsonConvert.SerializeObject(requestBody, SerializerSettings);
             var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
             var responseMessage = await _httpClient.PostAsync(requestUri, httpContent, cancellationToken);
