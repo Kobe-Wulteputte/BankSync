@@ -126,6 +126,9 @@ public class EnableBankingService(
             record.Accounts.Add(new StoredAccount { Uid = uid, Iban = iban });
         }
 
+        // If no account resolved (e.g. a closed account), Accounts stays empty and IsIncomplete
+        // stays true, so this record is retried on every future sync. That's intentional: it lets
+        // a transient resolution failure heal itself rather than being silently accepted as final.
         logger.LogInformation("Resolved session {SessionId} as {Bank} with {Count} account(s)",
             record.SessionId, record.Bank, record.Accounts.Count);
 
@@ -165,9 +168,16 @@ public class EnableBankingService(
         }
 
         var sessions = await LoadSessionsAsync(verifyAll: false);
-        var retrievalDays = int.Parse(configuration["RetrievalDays"] ?? "31");
+
+        if (!int.TryParse(configuration["RetrievalDays"], out var retrievalDays))
+        {
+            retrievalDays = 31;
+            logger.LogWarning("RetrievalDays is missing or not a number; defaulting to {Days} days.", retrievalDays);
+        }
+
         var dateFrom = DateTime.UtcNow.AddDays(-retrievalDays);
         var expenses = new List<Expense>();
+        var syncedBanks = 0;
 
         foreach (var bank in _settings.Banks)
         {
@@ -180,12 +190,17 @@ public class EnableBankingService(
                 continue;
             }
 
+            // Deliberately no renewal buffer here (unlike ConnectAsync's RenewBeforeDays cutoff):
+            // a session that is still technically valid is used as-is for an unattended sync,
+            // proactive renewal is ConnectAsync's job.
             if (session.ValidUntil.HasValue && session.ValidUntil.Value < DateTime.UtcNow)
             {
                 logger.LogWarning("{Bank}: session expired on {ValidUntil}. Run `BankSync Connect`.",
                     bank.Name, session.ValidUntil);
                 continue;
             }
+
+            syncedBanks++;
 
             foreach (var iban in bank.Ibans)
             {
@@ -203,8 +218,8 @@ public class EnableBankingService(
             }
         }
 
-        logger.LogInformation("Enable Banking returned {Count} transaction(s) across {Banks} bank(s)",
-            expenses.Count, _settings.Banks.Count);
+        logger.LogInformation("Enable Banking returned {Count} transaction(s) from {Synced}/{Total} bank(s), {Skipped} skipped",
+            expenses.Count, syncedBanks, _settings.Banks.Count, _settings.Banks.Count - syncedBanks);
 
         return expenses;
     }
@@ -216,6 +231,8 @@ public class EnableBankingService(
 
         do
         {
+            var previousKey = continuationKey;
+
             var page = await enableAccountService.GetTransactionsAsync(new GetTransactionsRequest
             {
                 AccountId = accountUid,
@@ -234,6 +251,12 @@ public class EnableBankingService(
                 expenseService.CreateExpense(transaction, bankName)) ?? []);
 
             continuationKey = page.Data?.ContinuationKey;
+
+            if (continuationKey != null && continuationKey == previousKey)
+            {
+                logger.LogError("{Bank}/{Iban}: continuation key did not advance; stopping pagination.", bankName, iban);
+                break;
+            }
         } while (!string.IsNullOrEmpty(continuationKey));
 
         logger.LogInformation("{Bank}/{Iban}: {Count} transaction(s)", bankName, iban, expenses.Count);
@@ -260,6 +283,9 @@ public class EnableBankingService(
 
         var sessions = await LoadSessionsAsync(verifyAll: true);
 
+        // Deliberately uses a RenewBeforeDays buffer here (unlike GetEnableTransactions' bare
+        // ValidUntil < UtcNow check): Connect is the proactive renewal path, so a session that is
+        // still valid but expiring soon is replaced now rather than left to fail on some later sync.
         var cutoff = DateTime.UtcNow.AddDays(_settings.RenewBeforeDays);
         var live = new List<BankSession>();
         foreach (var session in sessions)
