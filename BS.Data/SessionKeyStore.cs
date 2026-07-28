@@ -38,7 +38,15 @@ public class SessionKeyStore
 
         if (text[0] == '[')
         {
-            return JsonSerializer.Deserialize<List<BankSession>>(text, JsonOptions) ?? [];
+            try
+            {
+                return JsonSerializer.Deserialize<List<BankSession>>(text, JsonOptions) ?? [];
+            }
+            catch (JsonException)
+            {
+                QuarantineCorruptFile();
+                return [];
+            }
         }
 
         return text
@@ -56,7 +64,26 @@ public class SessionKeyStore
             Directory.CreateDirectory(directory);
         }
 
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(sessions, JsonOptions));
+        var temporaryPath = _filePath + ".tmp";
+        File.WriteAllText(temporaryPath, JsonSerializer.Serialize(sessions, JsonOptions));
+        File.Move(temporaryPath, _filePath, overwrite: true);
+    }
+
+    /// <summary>
+    /// Preserves an unreadable session file by renaming it aside so the user's data isn't
+    /// silently lost. Failure to rename (e.g. the file is locked) must not crash the app either.
+    /// </summary>
+    private void QuarantineCorruptFile()
+    {
+        var quarantinePath = $"{_filePath}.corrupt-{DateTime.Now:yyyyMMddHHmmss}";
+        try
+        {
+            File.Move(_filePath, quarantinePath);
+        }
+        catch (IOException)
+        {
+            // Best effort only — an inaccessible file must not prevent the app from starting.
+        }
     }
 
     /// <summary>Stores a session, replacing any existing session for the same bank.</summary>
