@@ -1,11 +1,13 @@
-﻿using BS.Data;
+using BS.Data;
 using BS.Logic.Workbook;
+using EnableBanking.Config;
 using EnableBanking.Interfaces;
 using EnableBanking.Models.Accounts;
 using EnableBanking.Models.General;
 using EnableBanking.Models.Sessions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Access = EnableBanking.Models.General.Access;
 using Aspsp = EnableBanking.Models.General.Aspsp;
 
@@ -17,9 +19,12 @@ public class EnableBankingService(
     IAccountsService enableAccountService,
     ExpenseService expenseService,
     SessionKeyStore sessionKeyStore,
+    IOptions<EnableBankingSettings> settings,
     IConfiguration configuration,
     ILogger<EnableBankingService> logger)
 {
+    private readonly EnableBankingSettings _settings = settings.Value;
+
     private async Task<bool> ValidateConnection()
     {
         var apps = await enableGeneralService.GetApplicationAsync(new GetApplicationRequest(), CancellationToken.None);
@@ -31,6 +36,120 @@ public class EnableBankingService(
 
         return true;
     }
+
+    /// <summary>
+    /// Reads stored sessions and fills in any missing metadata from the API.
+    /// With <paramref name="verifyAll"/> false, complete records are trusted as-is so a routine
+    /// sync makes no session calls at all. With it true, every record is re-checked against the
+    /// API and dead ones are dropped.
+    /// </summary>
+    private async Task<List<BankSession>> LoadSessionsAsync(bool verifyAll)
+    {
+        var stored = sessionKeyStore.GetSessions();
+        var live = new List<BankSession>();
+        var changed = false;
+
+        foreach (var record in stored)
+        {
+            if (!verifyAll && !record.IsIncomplete)
+            {
+                live.Add(record);
+                continue;
+            }
+
+            var session = await enableSessionsService.GetSessionAsync(
+                new GetSessionRequest { SessionId = record.SessionId }, CancellationToken.None);
+
+            if (session.Error != null || session.Data == null)
+            {
+                logger.LogWarning("Dropping session {SessionId}: {Message}",
+                    record.SessionId, session.Error?.Message ?? "no data returned");
+                changed = true;
+                continue;
+            }
+
+            if (await FillMetadataAsync(record, session.Data))
+            {
+                changed = true;
+            }
+
+            if (record.ValidUntil != session.Data.Access?.ValidUntil)
+            {
+                record.ValidUntil = session.Data.Access?.ValidUntil;
+                changed = true;
+            }
+
+            live.Add(record);
+        }
+
+        if (changed)
+        {
+            sessionKeyStore.SaveSessions(live);
+        }
+
+        return live;
+    }
+
+    /// <summary>Resolves bank and account details for a record that lacks them. Returns true if it changed.</summary>
+    private async Task<bool> FillMetadataAsync(BankSession record, GetSessionResponse session)
+    {
+        if (!record.IsIncomplete)
+        {
+            return false;
+        }
+
+        record.Bank = session.Aspsp?.Name ?? string.Empty;
+        record.Country = session.Aspsp?.Country ?? string.Empty;
+        record.Accounts = [];
+
+        foreach (var uid in session.Accounts ?? [])
+        {
+            var details = await enableAccountService.GetDetailsAsync(
+                new GetDetailsRequest { AccountId = uid }, CancellationToken.None);
+
+            if (details.Error != null || details.Data == null)
+            {
+                logger.LogWarning("Session {SessionId}: could not resolve account {Uid}: {Message}",
+                    record.SessionId, uid, details.Error?.Message ?? "no data returned");
+                continue;
+            }
+
+            var iban = EnableBankingSettings.NormalizeIban(
+                details.Data.AccountId?.Iban
+                ?? details.Data.AllAccountIds?.FirstOrDefault(id => id.SchemeName == "IBAN")?.Identification);
+
+            if (iban.Length == 0)
+            {
+                continue;
+            }
+
+            record.Accounts.Add(new StoredAccount { Uid = uid, Iban = iban });
+        }
+
+        logger.LogInformation("Resolved session {SessionId} as {Bank} with {Count} account(s)",
+            record.SessionId, record.Bank, record.Accounts.Count);
+
+        return true;
+    }
+
+    /// <summary>Builds a store record from a freshly authorized session.</summary>
+    private static BankSession ToRecord(AuthorizeSessionResponse response, BankSettings bank) => new()
+    {
+        SessionId = response.SessionId ?? Guid.Empty,
+        Bank = bank.Name,
+        Country = bank.Country,
+        ValidUntil = response.Access?.ValidUntil,
+        Accounts = (response.Accounts ?? [])
+            .Select(account => new StoredAccount
+            {
+                Uid = account.Uid ?? Guid.Empty,
+                Iban = EnableBankingSettings.NormalizeIban(
+                    account.AccountId?.Iban
+                    ?? account.AllAccountIds?.FirstOrDefault(id => id.Iban != null)?.Iban)
+            })
+            .Where(account => account.Uid != Guid.Empty && account.Iban.Length > 0)
+            .ToList()
+    };
 
     public async Task<List<Expense>> GetEnableTransactions()
     {
@@ -68,7 +187,7 @@ public class EnableBankingService(
                 continueationKey = sessionTransactions.Data?.ContinuationKey;
             } while (continueationKey != null);
         }
-        
+
 
 
         return expenses;
@@ -101,7 +220,7 @@ public class EnableBankingService(
                 sessionKeyStore.RemoveId(sessionKey);
             }
         }
-        
+
         var requiredIbans = new List<string>()
         {
             "BE29650184652964",
