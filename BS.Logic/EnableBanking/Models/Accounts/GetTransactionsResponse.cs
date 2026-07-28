@@ -7,7 +7,7 @@ namespace EnableBanking.Models.Accounts
         [JsonProperty("transactions")]
         public Transaction[]? Transactions { get; set; }
 
-        [JsonProperty("continuationKey")]
+        [JsonProperty("continuation_key")]
         public string? ContinuationKey { get; set; }
     }
 
