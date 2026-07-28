@@ -7,6 +7,13 @@ public sealed class EnableBankingSettings
     public string AppKid { get; set; } = string.Empty;
     public Uri RedirectUrl { get; set; } = new("https://localhost:8080");
 
+    /// <summary>
+    /// Sent as the <c>psu-ip-address</c> header, which some ASPSPs list in their
+    /// <c>required_psu_headers</c> metadata (Argenta does; Revolut does not). Leave unset to fall
+    /// back to the machine's local IPv4, and set it explicitly if an ASPSP rejects a private address.
+    /// </summary>
+    public string PsuIpAddress { get; set; } = string.Empty;
+
     /// <summary>Consent length requested when authorizing. Overridable per bank.</summary>
     public int ConsentValidityDays { get; set; } = 90;
 
@@ -90,6 +97,15 @@ public sealed class BankSettings
 
     /// <summary>Overrides the global value. Needed because ASPSPs cap consent length differently.</summary>
     public int? ConsentValidityDays { get; set; }
+
+    /// <summary>
+    /// Set for ASPSPs that will not honour a pre-specified account list. When true the
+    /// authorization request omits <c>access.accounts</c> entirely and the user picks accounts in
+    /// the bank's own screens; <see cref="Ibans"/> then acts purely as a filter on what gets synced.
+    /// Argenta needs this — it silently dropped a requested IBAN list and granted no accounts.
+    /// Revolut honours the list, so it can stay false.
+    /// </summary>
+    public bool SelectAccountsAtBank { get; set; }
 
     public List<string> Ibans { get; set; } = [];
 }

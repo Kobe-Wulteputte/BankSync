@@ -42,6 +42,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         {
             options.KeyPath = enableBankingSettings.KeyPath;
             options.AppKid = enableBankingSettings.AppKid;
+            options.PsuIpAddress = enableBankingSettings.PsuIpAddress;
         });
         services
             .AddFluentEmail(ctx.Configuration["Mail:From"], "BankSync")

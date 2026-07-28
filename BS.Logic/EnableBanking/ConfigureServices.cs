@@ -21,22 +21,27 @@ namespace EnableBanking
 
             services.Configure(configureOptions);
             services.AddTransient<TokenHandler>();
+            services.AddTransient<PsuHeaderHandler>();
             services.AddTransient<LoggingHandler>();
 
             services.AddHttpClient<IGeneralService, GeneralService>(httpClient => { httpClient.BaseAddress = new Uri($"{_baseAddress}"); })
-                .AddHttpMessageHandler<TokenHandler>();
+                .AddHttpMessageHandler<TokenHandler>()
+                .AddHttpMessageHandler<PsuHeaderHandler>();
             // .AddHttpMessageHandler<LoggingHandler>();
 
             services.AddHttpClient<ISessionsService, SessionsService>(httpClient => { httpClient.BaseAddress = new Uri($"{_baseAddress}"); })
-                .AddHttpMessageHandler<TokenHandler>();
+                .AddHttpMessageHandler<TokenHandler>()
+                .AddHttpMessageHandler<PsuHeaderHandler>();
             // .AddHttpMessageHandler<LoggingHandler>();
 
             services.AddHttpClient<IAccountsService, AccountsService>(httpClient => { httpClient.BaseAddress = new Uri($"{_baseAddress}"); })
-                .AddHttpMessageHandler<TokenHandler>();
+                .AddHttpMessageHandler<TokenHandler>()
+                .AddHttpMessageHandler<PsuHeaderHandler>();
             // .AddHttpMessageHandler<LoggingHandler>();
 
             services.AddHttpClient<IPaymentsService, PaymentsService>(httpClient => { httpClient.BaseAddress = new Uri($"{_baseAddress}"); })
-                .AddHttpMessageHandler<TokenHandler>();
+                .AddHttpMessageHandler<TokenHandler>()
+                .AddHttpMessageHandler<PsuHeaderHandler>();
             // .AddHttpMessageHandler<LoggingHandler>();
 
             return services;

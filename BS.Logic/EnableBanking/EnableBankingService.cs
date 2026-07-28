@@ -340,7 +340,11 @@ public class EnableBankingService(
                 ValidUntil = DateTime.UtcNow.AddDays(validityDays),
                 Balances = true,
                 Transactions = true,
-                Accounts = bank.Ibans.Select(iban => new Models.General.Account { Iban = iban }).ToArray()
+                // Omitted entirely when the ASPSP will not honour a pre-specified list, in which
+                // case the user picks accounts in the bank's own screens instead.
+                Accounts = bank.SelectAccountsAtBank
+                    ? null
+                    : bank.Ibans.Select(iban => new Models.General.Account { Iban = iban }).ToArray()
             },
             CredentialsAutosubmit = true,
             RedirectUrl = _settings.RedirectUrl,
@@ -356,8 +360,16 @@ public class EnableBankingService(
             return;
         }
 
-        logger.LogInformation("{Bank}: open this URL, authorize {Count} account(s), then paste the code from the redirect:\n{Url}",
-            bank.Name, bank.Ibans.Count, authorization.Data.Url);
+        if (bank.SelectAccountsAtBank)
+        {
+            logger.LogInformation("{Bank}: open this URL and select the account(s) you want to sync, then paste the code from the redirect:\n{Url}",
+                bank.Name, authorization.Data.Url);
+        }
+        else
+        {
+            logger.LogInformation("{Bank}: open this URL, authorize {Count} account(s), then paste the code from the redirect:\n{Url}",
+                bank.Name, bank.Ibans.Count, authorization.Data.Url);
+        }
 
         Console.Write($"{bank.Name} code: ");
         var code = Console.ReadLine();
