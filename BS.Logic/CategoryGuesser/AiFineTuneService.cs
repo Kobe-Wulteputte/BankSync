@@ -33,9 +33,11 @@ public static class AiFineTuneService
 
             var listFineTuneEventsStream = await sdk.FineTunes.ListFineTuneEvents(createFineTuneResponse.Id, true);
             using var streamReader = new StreamReader(listFineTuneEventsStream);
-            while (!streamReader.EndOfStream)
+            // Reading until null rather than checking EndOfStream, which blocks synchronously on a
+            // network stream (CA2024).
+            while (await streamReader.ReadLineAsync() is { } line)
             {
-                Console.WriteLine(await streamReader.ReadLineAsync());
+                Console.WriteLine(line);
             }
 
             do
