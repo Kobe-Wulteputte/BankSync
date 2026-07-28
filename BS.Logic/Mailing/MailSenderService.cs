@@ -1,10 +1,9 @@
 ﻿using FluentEmail.Core;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace BS.Logic.Mailing;
 
-public class MailSenderService(IConfiguration configuration, ILogger<MailSenderService> logger, IFluentEmail fluentEmail)
+public class MailSenderService(ILogger<MailSenderService> logger, IFluentEmail fluentEmail)
 {
     /// <summary>
     /// Sends mail. <paramref name="isHtml"/> defaults to false because FluentEmail does too, and

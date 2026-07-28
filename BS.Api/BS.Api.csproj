@@ -1,9 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>dotnet-WorkerService1-E5CE90F1-E481-41AF-9BC9-2DCE350E8F92</UserSecretsId>
         <RootNamespace>BS.Api</RootNamespace>
     </PropertyGroup>
 

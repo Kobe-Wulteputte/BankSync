@@ -9,13 +9,14 @@
 
     <ItemGroup>
         <PackageReference Include="Betalgo.Ranul.OpenAI" Version="9.2.6" />
-        <PackageReference Include="ClosedXML" Version="0.102.3" />
+        <!-- 0.105.1 drops the System.IO.Packaging 6.0.0 dependency carrying GHSA-f32c-w444-8ppv. -->
+        <PackageReference Include="ClosedXML" Version="0.105.1" />
         <PackageReference Include="FluentEmail.Smtp" Version="3.0.2" />
-        <PackageReference Include="Going.Plaid" Version="6.29.0" />
-        <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.3.1" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.1" />
-        <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.4.0" />
+        <!-- 8.21.0 drops Microsoft.Bcl.Memory 9.0.0 carrying GHSA-73j8-2gch-69rq. -->
+        <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.21.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.21.0" />
+        <PackageReference Include="VMelnalksnis.NordigenDotNet" Version="1.5.0" />
     </ItemGroup>
 
     <ItemGroup>

@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 // appsettings.json and the signing key are linked from BS.Console, so they exist in the output
 // directory rather than the project directory that `dotnet run` uses as the content root.
 // Both are therefore resolved against the base directory explicitly.
-builder.Configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false);
+builder.Configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false).AddUserSecrets<Program>(optional: true);
 
 // Re-applied after the file so environment variables still win, which the default builder ordering
 // would otherwise lose by having the explicit file added last.
