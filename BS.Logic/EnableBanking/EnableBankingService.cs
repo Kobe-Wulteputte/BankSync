@@ -193,122 +193,141 @@ public class EnableBankingService(
         return expenses;
     }
 
-    public async Task CreateNewAccountCheck()
+    /// <summary>
+    /// Interactive. Ensures every configured bank has one session covering all its configured IBANs.
+    /// Invoked by `BankSync Connect`, never by a routine sync.
+    /// </summary>
+    public async Task ConnectAsync()
     {
+        if (_settings.Banks.Count == 0)
+        {
+            logger.LogWarning("No banks configured under EnableBanking:Banks; nothing to connect.");
+            return;
+        }
+
         if (!await ValidateConnection())
         {
             return;
         }
 
-        // Cleanup old sessions
-        var sessionKeys = sessionKeyStore.GetIds();
-        foreach (var sessionKey in sessionKeys)
+        var sessions = await LoadSessionsAsync(verifyAll: true);
+
+        var cutoff = DateTime.UtcNow.AddDays(_settings.RenewBeforeDays);
+        var live = new List<BankSession>();
+        foreach (var session in sessions)
         {
-            var session = await enableSessionsService.GetSessionAsync(new GetSessionRequest()
+            if (session.ValidUntil.HasValue && session.ValidUntil.Value < cutoff)
             {
-                SessionId = Guid.Parse(sessionKey)
-            }, CancellationToken.None);
-            if (session.Error != null)
-            {
-                logger.LogError($"Error fetching session {sessionKey}: {session.Error.Message}");
-                sessionKeyStore.RemoveId(sessionKey);
+                logger.LogInformation("{Bank}: session {SessionId} expires {ValidUntil}; it will be replaced.",
+                    session.Bank, session.SessionId, session.ValidUntil);
                 continue;
             }
 
-            if (session.Data?.Access?.ValidUntil != null && session.Data.Access.ValidUntil < DateTime.UtcNow.AddDays(1))
-            {
-                sessionKeyStore.RemoveId(sessionKey);
-            }
+            live.Add(session);
         }
 
-        var requiredIbans = new List<string>()
+        sessionKeyStore.SaveSessions(live);
+
+        foreach (var bank in _settings.Banks)
         {
-            "BE29650184652964",
-            "BE50650280329118"
-        };
-        var missingIbans = requiredIbans.ToList();
-        sessionKeys = sessionKeyStore.GetIds();
+            var existing = live.FirstOrDefault(session =>
+                string.Equals(session.Bank, bank.Name, StringComparison.OrdinalIgnoreCase));
 
-        foreach (var iban in requiredIbans)
-        {
-            bool hasSession = false;
-            foreach (var sessionKey in sessionKeys)
+            var covered = existing?.Accounts
+                .Select(account => account.Iban)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+
+            var missing = bank.Ibans.Where(iban => !covered.Contains(iban)).ToList();
+
+            if (missing.Count == 0)
             {
-                var session = await enableSessionsService.GetSessionAsync(new GetSessionRequest()
-                {
-                    SessionId = Guid.Parse(sessionKey)
-                }, CancellationToken.None);
-                if (session.Error != null)
-                {
-                    continue;
-                }
-
-                var account = await enableAccountService.GetDetailsAsync(new GetDetailsRequest()
-                {
-                    AccountId = session.Data.Accounts[0]
-                }, CancellationToken.None);
-                if (account.Error != null)
-                {
-                    continue;
-                }
-
-                if (account.Data.AllAccountIds.FirstOrDefault(acId => acId.Identification == iban) != null)
-                {
-                    logger.LogInformation($"Found existing session for IBAN {iban} with session key {sessionKey}");
-                    hasSession = true;
-                    break;
-                }
-            }
-
-            if (hasSession)
-            {
-                missingIbans.Remove(iban);
-            }
-        }
-
-        foreach (var missingIban in missingIbans)
-        {
-            var authresult = await enableGeneralService.StartAuthorizationAsync(new StartAuthorizationRequest()
-            {
-                Access = new Access()
-                {
-                    ValidUntil = DateTime.UtcNow.AddDays(90),
-                    Balances = true,
-                    Transactions = true,
-                    Accounts =
-                    [
-                        new Models.General.Account()
-                        {
-                            Iban = missingIban
-                        }
-                    ],
-                },
-                CredentialsAutosubmit = true,
-                RedirectUrl = new Uri("https://localhost:8080"),
-                State = Guid.NewGuid().ToString(),
-                PsuType = "personal",
-                Aspsp = new Aspsp()
-                {
-                    Name = "Revolut",
-                    Country = "BE"
-                }
-            }, CancellationToken.None);
-
-            logger.LogInformation("To authenticate open URL: {DataUrl}", authresult.Data.Url);
-
-            var code = Console.ReadLine();
-
-            var authsessions = await enableSessionsService.AuthorizeSessionAsync(new AuthorizeSessionRequest()
-            {
-                Code = code
-            }, CancellationToken.None);
-            if (authsessions.Error != null)
-            {
-                logger.LogError($"Error authorizing session for IBAN {missingIban}: {authsessions.Error.Message}");
+                logger.LogInformation("{Bank}: all {Count} configured account(s) already covered by session {SessionId}.",
+                    bank.Name, bank.Ibans.Count, existing!.SessionId);
                 continue;
             }
-            sessionKeyStore.AddId(authsessions.Data.SessionId.ToString());
-            logger.LogInformation($"Successfully created session for IBAN {missingIban} with session key {authsessions.Data.SessionId}");
+
+            await AuthorizeBankAsync(bank, existing);
+        }
+    }
+
+    private async Task AuthorizeBankAsync(BankSettings bank, BankSession? existing)
+    {
+        var validityDays = bank.ConsentValidityDays ?? _settings.ConsentValidityDays;
+
+        var authorization = await enableGeneralService.StartAuthorizationAsync(new StartAuthorizationRequest
+        {
+            Access = new Access
+            {
+                ValidUntil = DateTime.UtcNow.AddDays(validityDays),
+                Balances = true,
+                Transactions = true,
+                Accounts = bank.Ibans.Select(iban => new Models.General.Account { Iban = iban }).ToArray()
+            },
+            CredentialsAutosubmit = true,
+            RedirectUrl = _settings.RedirectUrl,
+            State = Guid.NewGuid().ToString(),
+            PsuType = bank.PsuType,
+            Aspsp = new Aspsp { Name = bank.Name, Country = bank.Country }
+        }, CancellationToken.None);
+
+        if (authorization.Error != null || authorization.Data?.Url == null)
+        {
+            logger.LogError("{Bank}: could not start authorization: {Message}",
+                bank.Name, authorization.Error?.Message ?? "no URL returned");
+            return;
+        }
+
+        logger.LogInformation("{Bank}: open this URL, authorize {Count} account(s), then paste the code from the redirect:\n{Url}",
+            bank.Name, bank.Ibans.Count, authorization.Data.Url);
+
+        Console.Write($"{bank.Name} code: ");
+        var code = Console.ReadLine();
+
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            logger.LogWarning("{Bank}: no code entered, skipping.", bank.Name);
+            return;
+        }
+
+        var authorized = await enableSessionsService.AuthorizeSessionAsync(
+            new AuthorizeSessionRequest { Code = code.Trim() }, CancellationToken.None);
+
+        if (authorized.Error != null || authorized.Data?.SessionId == null)
+        {
+            logger.LogError("{Bank}: authorization failed: {Message}",
+                bank.Name, authorized.Error?.Message ?? "no session id returned");
+            return;
+        }
+
+        var record = ToRecord(authorized.Data, bank);
+        sessionKeyStore.AddOrReplace(record);
+
+        logger.LogInformation("{Bank}: session {SessionId} created covering {Count} account(s).",
+            bank.Name, record.SessionId, record.Accounts.Count);
+
+        var uncovered = bank.Ibans
+            .Where(iban => record.Accounts.All(account =>
+                !string.Equals(account.Iban, iban, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (uncovered.Count > 0)
+        {
+            logger.LogWarning("{Bank}: the new session does not cover {Ibans}. Check the IBANs in configuration.",
+                bank.Name, string.Join(", ", uncovered));
+        }
+
+        if (existing == null)
+        {
+            return;
+        }
+
+        var deleted = await enableSessionsService.DeleteSessionAsync(
+            new DeleteSessionRequest { SessionId = existing.SessionId }, CancellationToken.None);
+
+        if (deleted.Error != null)
+        {
+            logger.LogWarning("{Bank}: could not delete superseded session {SessionId}: {Message}",
+                bank.Name, existing.SessionId, deleted.Error.Message);
         }
     }
 }
