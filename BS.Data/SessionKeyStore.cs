@@ -71,7 +71,8 @@ public class SessionKeyStore
 
     /// <summary>
     /// Preserves an unreadable session file by renaming it aside so the user's data isn't
-    /// silently lost. Failure to rename (e.g. the file is locked) must not crash the app either.
+    /// silently lost. Failure to rename (e.g. the file is locked, or a protected folder denies
+    /// the write) must not crash the app either.
     /// </summary>
     private void QuarantineCorruptFile()
     {
@@ -80,7 +81,7 @@ public class SessionKeyStore
         {
             File.Move(_filePath, quarantinePath);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // Best effort only — an inaccessible file must not prevent the app from starting.
         }
