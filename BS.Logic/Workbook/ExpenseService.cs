@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using BS.Data;
-using EnableBanking.Models.Sessions;
 using VMelnalksnis.NordigenDotNet.Accounts;
 
 namespace BS.Logic.Workbook;
@@ -60,7 +59,7 @@ public class ExpenseService
         };
     }
 
-    public Expense CreateExpense(EnableBanking.Models.Accounts.Transaction transaction, GetSessionResponse session)
+    public Expense CreateExpense(EnableBanking.Models.Accounts.Transaction transaction, string bankName)
     {
         decimal.TryParse(transaction.TransactionAmount?.Amount, CultureInfo.InvariantCulture, out decimal amount);
         DateTime.TryParse(transaction.ValueDate, out DateTime valueDate);
@@ -87,7 +86,7 @@ public class ExpenseService
         return new Expense()
         {
             Id = transaction.EntryReference ?? transaction.TransactionId ?? date.Ticks.ToString(),
-            Type = session.Aspsp?.Name ?? "EnableBanking",
+            Type = bankName,
             Name = name,
             Amount = amount * direction,
             Account = transaction.DebtorAccount?.Iban ?? transaction.CreditorAccount?.Iban ?? "",
