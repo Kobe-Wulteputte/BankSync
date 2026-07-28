@@ -70,7 +70,12 @@ IHost host = Host.CreateDefaultBuilder(args)
 
 var app = host.Services.GetRequiredService<Application>();
 
-if (args.Contains("GenerateTrainingData"))
+if (args.Contains("Connect"))
+{
+    var enableBankingService = host.Services.GetRequiredService<EnableBankingService>();
+    await enableBankingService.ConnectAsync();
+}
+else if (args.Contains("GenerateTrainingData"))
 {
     var trainingDataService = host.Services.GetRequiredService<TrainingDataService>();
     trainingDataService.GenerateTrainingData();
