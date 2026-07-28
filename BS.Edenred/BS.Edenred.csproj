@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>BS.Edenred</RootNamespace>
+        <AssemblyName>BS.Edenred</AssemblyName>
+        <!-- Share the same user-secrets store as BS.Console so the OpenAI key is reused. -->
+        <UserSecretsId>dotnet-WorkerService1-E5CE90F1-E481-41AF-9BC9-2DCE350E8F92</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Betalgo.Ranul.OpenAI" Version="9.2.6" />
+        <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Playwright" Version="1.49.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\BS.Data\BS.Data.csproj" />
+        <ProjectReference Include="..\BS.Logic\BS.Logic.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="appsettings.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+</Project>

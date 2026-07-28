@@ -30,6 +30,36 @@ public class ExpenseService
         };
     }
 
+    public Expense CreateExpense(EdenredOperation operation)
+    {
+        var product = operation.TransactionDetails?.ProductRef switch
+        {
+            "TRE" => "Meal voucher",
+            "ECE" => "Eco voucher",
+            _ => operation.TransactionDetails?.ProductRef ?? ""
+        };
+
+        var descriptionParts = new[] { product, operation.Type, operation.Reason }
+            .Where(part => !string.IsNullOrWhiteSpace(part));
+        var description = string.Join(" · ", descriptionParts);
+
+        var amountInCents = operation.TransactionDetails?.Amount ?? 0;
+
+        return new Expense
+        {
+            Type = "Edenred",
+            Amount = amountInCents / 100m, // sign preserved: debit negative, credit positive
+            Date = operation.Date,
+            Account = "",
+            Name = operation.Outlet?.OutletName ?? "",
+            Category = "",
+            Group = "",
+            Reimbursed = false,
+            Description = description,
+            Id = "EDENRED-" + operation.OperationRef
+        };
+    }
+
     public Expense CreateExpense(EnableBanking.Models.Accounts.Transaction transaction, GetSessionResponse session)
     {
         decimal.TryParse(transaction.TransactionAmount?.Amount, CultureInfo.InvariantCulture, out decimal amount);

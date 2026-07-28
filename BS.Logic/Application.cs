@@ -23,8 +23,8 @@ public class Application(
     {
         logger.LogInformation("Starting application");
 
+        // await goCardlessService.CreateNewAccCheck();
         await enableBankingService.CreateNewAccountCheck();
-        await goCardlessService.CreateNewAccCheck();
 
         try
         {

@@ -55,6 +55,7 @@ public class WorkbookService
             row.Cell(2).SetValue(expense.Amount);
             row.Cell(2).Style.NumberFormat.Format = "_ * # ##0.00_ ;_ * -# ##0.00_ ;_ * \"-\"??_ ;_ @_ ";
             row.Cell(3).SetValue(expense.Date);
+            row.Cell(3).Style.DateFormat.Format = "dd/mm/yyyy";
             row.Cell(4).SetValue(expense.Account);
             row.Cell(5).SetValue(expense.Name);
             row.Cell(6).SetValue(expense.Category);

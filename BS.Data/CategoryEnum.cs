@@ -7,7 +7,6 @@ public enum CategoryEnum
     Clothes,
     Communication,
     Education,
-
     [EnumMember(Value = "Food and drink (other)")]
     FoodAndDrink,
     Groceries,
@@ -38,5 +37,7 @@ public enum CategoryEnum
     Bonus,
     Wage,
     Taxes,
-    Reimbursement
+    Reimbursement,
+    Utilities,
+    Mortgage
 }
