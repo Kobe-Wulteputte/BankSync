@@ -273,13 +273,28 @@ Manual, since the solution has no test project:
   files keep deserializing. Only IBAN-valued identifiers can be matched against config;
   non-IBAN accounts are reachable only through a bank that syncs all accounts.
 - **Some ASPSPs reject a pre-specified account list.** `SelectAccountsAtBank` omits
-  `access.accounts` so the user chooses in the bank's own screens. Added for Argenta,
-  which ignores a requested IBAN list. Note this did not resolve Argenta's underlying
-  problem — see below.
-- **Argenta is unresolved and outside this codebase.** Four authorizations, with and
-  without a pre-specified account list, all produced a session with `status: AUTHORIZED`
-  and `accounts: []` / `accounts_data: []`, confirmed on the wire at `POST /sessions`.
-  Revolut returns accounts through the identical code path. Raised with Enable Banking.
+  `access.accounts` so the user chooses in the bank's own screens. Optional and off by
+  default; Revolut honours a pre-specified list.
+
+## Operational note: a new bank returns no accounts until it is linked
+
+The Enable Banking profile behind this application is **restricted**. Every new ASPSP must
+be linked to the account in the Enable Banking control panel before it exposes anything.
+
+Until that is done, authorization succeeds and the session reports `status: AUTHORIZED`
+with `accounts: []` and `accounts_data: []`, in both the `POST /sessions` response and any
+later `GET /sessions/{id}`. No error is returned and nothing in the payload distinguishes
+it from a client-side mapping fault.
+
+This was the cause for both Argenta and PayPal on 2026-07-28. Revolut was already linked,
+which made the failure look bank-specific. Before investigating client code when a newly
+configured bank logs `covering 0 account(s)`, confirm the ASPSP is linked to the profile.
+
+Two changes were made while chasing this that turned out not to be the cause. Both were
+independently correct and have been kept: sending `psu-ip-address` (Argenta declares it in
+`required_psu_headers` and it was never sent), and omitting null metadata fields from
+request bodies (`StartAuthorizationRequest.Aspsp` reuses the ASPSP listing type, so nine
+null fields were being posted to `/auth`).
 - **One session per bank**, enforced by deleting the prior session after a successful
   re-authorization.
 - Alternatives considered and rejected: a flat per-IBAN account list, which costs one
