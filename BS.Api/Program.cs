@@ -17,9 +17,19 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     ContentRootPath = AppContext.BaseDirectory
 });
 
-// Added last, and unconditionally rather than only in Development, so real values override the
-// placeholders committed in appsettings.json even when IIS runs this as Production.
+// User secrets are added unconditionally rather than only in Development, because appsettings.json
+// carries redacted placeholders and this app runs as Production locally too.
 builder.Configuration.AddUserSecrets<Program>(optional: true);
+
+// The environment file is then re-applied on top, so it outranks user secrets. Without this the
+// six EnableBanking keys held in secrets would silently beat appsettings.Production.json, which is
+// the file meant to be authoritative on the deployed IIS box. Environment variables stay last.
+builder.Configuration
+    .AddJsonFile(
+        Path.Combine(AppContext.BaseDirectory, $"appsettings.{builder.Environment.EnvironmentName}.json"),
+        optional: true,
+        reloadOnChange: true)
+    .AddEnvironmentVariables();
 
 var enableBankingSettings = new EnableBankingSettings();
 builder.Configuration.GetSection("EnableBanking").Bind(enableBankingSettings);
