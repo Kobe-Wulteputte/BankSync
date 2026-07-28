@@ -16,8 +16,13 @@ Three further limits block a multi-bank setup:
   `GetDetails` for each session/IBAN pair.
 - Both the sync and the connect path read `session.Data.Accounts[0]`, so only the first
   account of a session is ever reachable.
-- The pagination loop in `GetEnableTransactions` never feeds `ContinuationKey` back into
-  the next request. Any paged response loops forever re-fetching the first page.
+- Transaction pagination is broken in two compounding ways. `GetTransactionsResponse`
+  declares `[JsonProperty("continuationKey")]`, but the API returns `continuation_key` —
+  snake_case, as every other model in the codebase uses and as `AccountsService` already
+  sends it. The key therefore never binds, and the `do/while` in `GetEnableTransactions`
+  exits after one page, silently truncating results. Correcting the property name alone
+  would make things worse: the loop never feeds the key into the next request, so it
+  would then spin forever re-fetching the first page. Both halves must be fixed together.
 
 ## Goals
 
@@ -176,9 +181,11 @@ both yield the same transactions.
   to the next bank. Remaining banks still sync.
 - Resolve each configured IBAN to its account `Uid` via the stored record. If the
   session does not cover it, warn and skip that account.
-- Fetch transactions per account, passing the previous response's `ContinuationKey` into
-  the next `GetTransactionsRequest` and stopping when it is null. This fixes the
-  infinite loop in the current implementation.
+- Fetch transactions per account with pagination fixed on both sides: retag
+  `GetTransactionsResponse.ContinuationKey` as `[JsonProperty("continuation_key")]` so
+  it binds at all, and pass the previous response's key into the next
+  `GetTransactionsRequest`, stopping when it comes back null. `AccountsService` already
+  puts `continuation_key` on the query string, so no transport change is needed.
 - `DateFrom` continues to come from `RetrievalDays`.
 
 `ExpenseService.CreateExpense(Transaction, GetSessionResponse)` uses the session only for
@@ -200,6 +207,25 @@ Failures are per-bank and never abort the whole run:
 | Session does not cover a configured IBAN | Warn naming the IBAN, skip that account |
 | `AuthorizeSession` fails | Log, keep the old session, continue to the next bank |
 
+## Project structure note
+
+`BS.Logic/EnableBanking/EnableBanking.csproj` is a vendored copy of the third-party
+`EnableBanking` client that was dropped inside the `BS.Logic` folder. It is not listed in
+`BankSync.sln` and nothing references it. Because SDK-style projects glob `**/*.cs`, its
+sources compile straight into the `BS.Logic` assembly, which is why
+`using EnableBanking;` resolves in `Application.cs` with no project reference.
+
+Consequences for this work:
+
+- New Enable Banking files placed under `BS.Logic/EnableBanking/` compile into `BS.Logic`.
+  No project reference or solution change is needed.
+- Package availability is governed by `BS.Logic.csproj`, not `EnableBanking.csproj`.
+  `IOptions<T>` already resolves there transitively, so no new package is required.
+- Editing the vendored model `GetTransactionsResponse.cs` is safe — nothing consumes the
+  orphaned project, and the file is not restored from NuGet.
+
+Untangling that vendored project is out of scope here.
+
 ## Files touched
 
 New:
@@ -211,7 +237,9 @@ Modified:
 
 - `BS.Data/SessionKeyStore.cs` — JSON records, legacy read
 - `BS.Logic/EnableBanking/EnableBankingService.cs` — `ConnectAsync`, config-driven sync,
-  pagination fix
+  pagination loop fix
+- `BS.Logic/EnableBanking/Models/Accounts/GetTransactionsResponse.cs` — retag
+  `ContinuationKey` as `continuation_key`
 - `BS.Logic/Workbook/ExpenseService.cs` — overload takes bank name
 - `BS.Logic/Application.cs` — drop the connect call
 - `BS.Console/Program.cs` — bind settings, add `Connect` branch
