@@ -8,6 +8,8 @@ using BS.Logic.Mailing;
 using BS.Logic.Nordigen;
 using BS.Logic.Workbook;
 using EnableBanking;
+using EnableBanking.Config;
+using Microsoft.Extensions.Options;
 using NodaTime;
 using Serilog;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
@@ -32,10 +34,14 @@ IHost host = Host.CreateDefaultBuilder(args)
         services.AddTransient<MailSenderService>();
         services.AddTransient<GoCardlessService>();
         services.AddTransient<SessionKeyStore>();
+        var enableBankingSettings = new EnableBankingSettings();
+        ctx.Configuration.GetSection("EnableBanking").Bind(enableBankingSettings);
+        enableBankingSettings.NormalizeAndValidate();
+        services.AddSingleton(Options.Create(enableBankingSettings));
         services.AddEnableBankingApi(options =>
         {
-            options.KeyPath = ctx.Configuration["EnableBanking:KeyPath"] ?? "enablebanking.key";
-            options.AppKid = ctx.Configuration["EnableBanking:AppKid"] ?? "your-app-kid";
+            options.KeyPath = enableBankingSettings.KeyPath;
+            options.AppKid = enableBankingSettings.AppKid;
         });
         services
             .AddFluentEmail(ctx.Configuration["Mail:From"], "BankSync")
