@@ -34,10 +34,10 @@ public class Application(
             }
 
             var enableTransactions = await enableBankingService.GetEnableTransactions();
-            var goCardlessTransactions = await goCardlessService.GetGoCardlessTransactions();
+            // var goCardlessTransactions = await goCardlessService.GetGoCardlessTransactions();
 
-            var transactions = goCardlessTransactions;
-            transactions.AddRange(enableTransactions);
+            var transactions = enableTransactions;
+            // transactions.AddRange(goCardlessTransactions);
 
 
             logger.LogInformation($"Found a total of {transactions.Count} transactions");
