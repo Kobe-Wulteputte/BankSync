@@ -30,7 +30,9 @@ if (args is ["--dry-run", var jsonPath, ..])
 }
 
 IHost host = Host.CreateDefaultBuilder(args)
-    .ConfigureHostConfiguration(cfg => cfg.AddJsonFile("appsettings.json"))
+    // See BS.Console: anchored to the app directory so the working directory cannot break config
+    // loading, and so appsettings.{Environment}.json is picked up.
+    .UseContentRoot(AppContext.BaseDirectory)
     .ConfigureServices((ctx, services) =>
     {
         var config = ctx.Configuration;

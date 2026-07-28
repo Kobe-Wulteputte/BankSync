@@ -15,7 +15,10 @@ using Serilog;
 using VMelnalksnis.NordigenDotNet.DependencyInjection;
 
 IHost host = Host.CreateDefaultBuilder(args)
-    .ConfigureHostConfiguration(cfg => { cfg.AddJsonFile("appsettings.json"); })
+    // Pinned to the app directory so a scheduled task or service launch, which starts the process
+    // in system32, still finds configuration. This also restores the default probing chain:
+    // appsettings.json then appsettings.{Environment}.json, which loading one file by hand skipped.
+    .UseContentRoot(AppContext.BaseDirectory)
     .ConfigureServices((ctx, services) =>
     {
         services.AddSingleton<Application, Application>();

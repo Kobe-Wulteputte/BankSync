@@ -5,25 +5,25 @@ using EnableBanking;
 using EnableBanking.Config;
 using Microsoft.Extensions.Options;
 
-var builder = WebApplication.CreateBuilder(args);
+// The content root is pinned to the app directory rather than the working directory. IIS starts
+// worker processes in system32, so the default probing would look for configuration there and find
+// nothing. Setting it here means the normal chain works: appsettings.json, then
+// appsettings.{Environment}.json, then user secrets, then environment variables — each overriding
+// the last. Loading a single file by hand instead is what previously caused
+// appsettings.Production.json to be ignored.
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 
-// appsettings.json and the signing key are linked from BS.Console, so they exist in the output
-// directory rather than the project directory that `dotnet run` uses as the content root.
-// Both are therefore resolved against the base directory explicitly.
-builder.Configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"), optional: false).AddUserSecrets<Program>(optional: true);
-
-// Re-applied after the file so environment variables still win, which the default builder ordering
-// would otherwise lose by having the explicit file added last.
-builder.Configuration.AddEnvironmentVariables();
+// Added last, and unconditionally rather than only in Development, so real values override the
+// placeholders committed in appsettings.json even when IIS runs this as Production.
+builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 var enableBankingSettings = new EnableBankingSettings();
 builder.Configuration.GetSection("EnableBanking").Bind(enableBankingSettings);
 enableBankingSettings.NormalizeAndValidate();
-
-if (!Path.IsPathRooted(enableBankingSettings.KeyPath))
-{
-    enableBankingSettings.KeyPath = Path.Combine(AppContext.BaseDirectory, enableBankingSettings.KeyPath);
-}
 
 builder.Services.AddSingleton(Options.Create(enableBankingSettings));
 builder.Services.AddTransient<SessionKeyStore>();

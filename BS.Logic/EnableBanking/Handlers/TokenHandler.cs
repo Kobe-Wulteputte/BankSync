@@ -25,10 +25,20 @@ namespace EnableBanking.Handlers
             return await base.SendAsync(request, cancellationToken);
         }
 
+        /// <summary>
+        /// Resolves a relative <see cref="TokenHandlerOptions.KeyPath"/> against the application
+        /// directory rather than the working directory. IIS worker processes and Windows services
+        /// start in system32, which is where a relative path would otherwise be looked up.
+        /// </summary>
+        private string ResolveKeyPath() =>
+            Path.IsPathRooted(_options.KeyPath)
+                ? _options.KeyPath
+                : Path.Combine(AppContext.BaseDirectory, _options.KeyPath);
+
         private string GetAccessToken()
         {
             using RSA rsa = RSA.Create();
-            var text = File.ReadAllText(_options.KeyPath);
+            var text = File.ReadAllText(ResolveKeyPath());
             rsa.ImportFromPem(text);
 
             var signingCredentials = new SigningCredentials(new RsaSecurityKey(rsa), SecurityAlgorithms.RsaSha256)
