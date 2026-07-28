@@ -114,16 +114,19 @@ public class EnableBankingService(
                 continue;
             }
 
-            var iban = EnableBankingSettings.NormalizeIban(
+            var identifier = ResolveIdentifier(
                 details.Data.AccountId?.Iban
-                ?? details.Data.AllAccountIds?.FirstOrDefault(id => id.SchemeName == "IBAN")?.Identification);
+                ?? details.Data.AllAccountIds?.FirstOrDefault(id => id.SchemeName == "IBAN")?.Identification,
+                details.Data.AccountId?.Other?.Identification
+                ?? details.Data.AllAccountIds?.FirstOrDefault()?.Identification
+                ?? details.Data.Name);
 
-            if (iban.Length == 0)
+            if (identifier.Length == 0)
             {
                 continue;
             }
 
-            record.Accounts.Add(new StoredAccount { Uid = uid, Iban = iban });
+            record.Accounts.Add(new StoredAccount { Uid = uid, Iban = identifier });
         }
 
         // If no account resolved (e.g. a closed account), Accounts stays empty and IsIncomplete
@@ -146,13 +149,29 @@ public class EnableBankingService(
             .Select(account => new StoredAccount
             {
                 Uid = account.Uid ?? Guid.Empty,
-                Iban = EnableBankingSettings.NormalizeIban(
+                Iban = ResolveIdentifier(
                     account.AccountId?.Iban
-                    ?? account.AllAccountIds?.FirstOrDefault(id => id.Iban != null)?.Iban)
+                    ?? account.AllAccountIds?.FirstOrDefault(id => id.Iban != null)?.Iban,
+                    account.AccountId?.Other?.Identification
+                    ?? account.AllAccountIds?.FirstOrDefault(id => id.Other?.Identification != null)?.Other?.Identification
+                    ?? account.Name)
             })
             .Where(account => account.Uid != Guid.Empty && account.Iban.Length > 0)
             .ToList()
     };
+
+    /// <summary>
+    /// Picks the identifier stored for an account. An IBAN is normalized so it can be compared
+    /// against configured IBANs; anything else is kept verbatim as a label, because ASPSPs without
+    /// IBANs (PayPal) identify accounts by things like an email address that normalization would
+    /// mangle. Such accounts are only reachable via a bank configured to sync all its accounts.
+    /// </summary>
+    private static string ResolveIdentifier(string? iban, string? fallback)
+    {
+        var normalized = EnableBankingSettings.NormalizeIban(iban);
+
+        return normalized.Length > 0 ? normalized : (fallback ?? string.Empty).Trim();
+    }
 
     public async Task<List<Expense>> GetEnableTransactions()
     {
@@ -204,6 +223,21 @@ public class EnableBankingService(
             }
 
             syncedBanks++;
+
+            if (bank.SyncsAllAccounts)
+            {
+                var allAccounts = usableSessions.SelectMany(stored => stored.Accounts).ToList();
+
+                logger.LogInformation("{Bank}: no IBANs configured, syncing all {Count} account(s) in the session.",
+                    bank.Name, allAccounts.Count);
+
+                foreach (var account in allAccounts)
+                {
+                    expenses.AddRange(await GetAccountTransactionsAsync(bank.Name, account.Iban, account.Uid, dateFrom));
+                }
+
+                continue;
+            }
 
             foreach (var iban in bank.Ibans)
             {
@@ -316,9 +350,19 @@ public class EnableBankingService(
                 .Select(account => account.Iban)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            var missing = bank.Ibans.Where(iban => !covered.Contains(iban)).ToList();
+            // With no IBANs configured there is nothing to compare, so a live session is enough.
+            List<string> missing = bank.SyncsAllAccounts
+                ? []
+                : bank.Ibans.Where(iban => !covered.Contains(iban)).ToList();
 
-            if (missing.Count == 0)
+            if (bank.SyncsAllAccounts && existingForBank.Count > 0)
+            {
+                logger.LogInformation("{Bank}: no IBANs configured; {Sessions} session(s) covering {Count} account(s) will all be synced.",
+                    bank.Name, existingForBank.Count, covered.Count);
+                continue;
+            }
+
+            if (missing.Count == 0 && existingForBank.Count > 0)
             {
                 logger.LogInformation("{Bank}: all {Count} configured account(s) already covered by {Sessions} session(s).",
                     bank.Name, bank.Ibans.Count, existingForBank.Count);
@@ -340,9 +384,10 @@ public class EnableBankingService(
                 ValidUntil = DateTime.UtcNow.AddDays(validityDays),
                 Balances = true,
                 Transactions = true,
-                // Omitted entirely when the ASPSP will not honour a pre-specified list, in which
-                // case the user picks accounts in the bank's own screens instead.
-                Accounts = bank.SelectAccountsAtBank
+                // Omitted when the ASPSP will not honour a pre-specified list (the user then picks
+                // accounts in the bank's own screens), and when no IBANs are configured at all —
+                // an empty array would request access to nothing.
+                Accounts = bank.SelectAccountsAtBank || bank.SyncsAllAccounts
                     ? null
                     : bank.Ibans.Select(iban => new Models.General.Account { Iban = iban }).ToArray()
             },
@@ -360,7 +405,7 @@ public class EnableBankingService(
             return;
         }
 
-        if (bank.SelectAccountsAtBank)
+        if (bank.SelectAccountsAtBank || bank.SyncsAllAccounts)
         {
             logger.LogInformation("{Bank}: open this URL and select the account(s) you want to sync, then paste the code from the redirect:\n{Url}",
                 bank.Name, authorization.Data.Url);

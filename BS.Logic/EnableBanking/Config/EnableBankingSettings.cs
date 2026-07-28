@@ -59,8 +59,10 @@ public sealed class EnableBankingSettings
                 return normalized;
             }).ToList();
 
-            if (bank.Ibans.Count == 0)
-                throw new InvalidOperationException($"EnableBanking:Banks entry '{bank.Name}' has no Ibans.");
+            // An empty list is legitimate: it means sync every account the session exposes. That is
+            // the only workable mode for ASPSPs whose accounts have no IBAN, PayPal being the case
+            // this was added for. Both Connect and sync log when a bank is in this mode, so a list
+            // omitted by accident does not silently widen what gets synced.
 
             foreach (var iban in bank.Ibans)
             {
@@ -108,4 +110,10 @@ public sealed class BankSettings
     public bool SelectAccountsAtBank { get; set; }
 
     public List<string> Ibans { get; set; } = [];
+
+    /// <summary>
+    /// True when no IBANs are listed, meaning every account the session exposes is synced.
+    /// Required for ASPSPs whose accounts have no IBAN, such as PayPal.
+    /// </summary>
+    public bool SyncsAllAccounts => Ibans.Count == 0;
 }

@@ -263,6 +263,23 @@ Manual, since the solution has no test project:
 
 - **Only configured IBANs sync**, even where a bank's consent exposes more accounts.
   Adding an account at an existing bank therefore requires a config edit and a reconnect.
+  **Amended after implementation:** an empty `Ibans` list now means "sync every account this
+  session exposes". This is required for ASPSPs whose accounts have no IBAN — PayPal is
+  listed by Enable Banking but identifies accounts by other means, so an IBAN-keyed
+  configuration cannot express it. Banks with a non-empty list are unaffected.
+- **Account identifiers are not always IBANs.** `StoredAccount.Iban` holds a normalized IBAN
+  where one exists and otherwise falls back to the account's other identification or name,
+  kept verbatim. The JSON property name is deliberately left as `Iban` so existing session
+  files keep deserializing. Only IBAN-valued identifiers can be matched against config;
+  non-IBAN accounts are reachable only through a bank that syncs all accounts.
+- **Some ASPSPs reject a pre-specified account list.** `SelectAccountsAtBank` omits
+  `access.accounts` so the user chooses in the bank's own screens. Added for Argenta,
+  which ignores a requested IBAN list. Note this did not resolve Argenta's underlying
+  problem — see below.
+- **Argenta is unresolved and outside this codebase.** Four authorizations, with and
+  without a pre-specified account list, all produced a session with `status: AUTHORIZED`
+  and `accounts: []` / `accounts_data: []`, confirmed on the wire at `POST /sessions`.
+  Revolut returns accounts through the identical code path. Raised with Enable Banking.
 - **One session per bank**, enforced by deleting the prior session after a successful
   re-authorization.
 - Alternatives considered and rejected: a flat per-IBAN account list, which costs one
