@@ -153,42 +153,90 @@ public class EnableBankingService(
 
     public async Task<List<Expense>> GetEnableTransactions()
     {
+        if (_settings.Banks.Count == 0)
+        {
+            logger.LogInformation("No banks configured under EnableBanking:Banks; skipping Enable Banking.");
+            return [];
+        }
+
         if (!await ValidateConnection())
         {
             return [];
         }
 
+        var sessions = await LoadSessionsAsync(verifyAll: false);
+        var retrievalDays = int.Parse(configuration["RetrievalDays"] ?? "31");
+        var dateFrom = DateTime.UtcNow.AddDays(-retrievalDays);
         var expenses = new List<Expense>();
-        var sessionKeys = sessionKeyStore.GetIds();
-        logger.LogInformation($"Found {sessionKeys.Count} stored session keys");
-        foreach (var sessionKey in sessionKeys)
+
+        foreach (var bank in _settings.Banks)
         {
-            logger.LogInformation($"Using session key: {sessionKey}");
-            var session = await enableSessionsService.GetSessionAsync(new GetSessionRequest()
+            var session = sessions.FirstOrDefault(stored =>
+                string.Equals(stored.Bank, bank.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (session == null)
             {
-                SessionId = Guid.Parse(sessionKey)
-            }, CancellationToken.None);
-            if (session.Error != null)
-            {
-                logger.LogError($"Error fetching session {sessionKey}: {session.Error.Message}");
+                logger.LogWarning("{Bank}: no stored session. Run `BankSync Connect`.", bank.Name);
                 continue;
             }
 
-
-            string? continueationKey = null;
-            do
+            if (session.ValidUntil.HasValue && session.ValidUntil.Value < DateTime.UtcNow)
             {
-                var sessionTransactions = await enableAccountService.GetTransactionsAsync(new GetTransactionsRequest()
+                logger.LogWarning("{Bank}: session expired on {ValidUntil}. Run `BankSync Connect`.",
+                    bank.Name, session.ValidUntil);
+                continue;
+            }
+
+            foreach (var iban in bank.Ibans)
+            {
+                var account = session.Accounts.FirstOrDefault(stored =>
+                    string.Equals(stored.Iban, iban, StringComparison.OrdinalIgnoreCase));
+
+                if (account == null)
                 {
-                    AccountId = session.Data.Accounts[0],
-                    DateFrom = DateTime.UtcNow.AddDays(-1 * int.Parse(configuration["RetrievalDays"])),
-                }, CancellationToken.None);
-                expenses.AddRange(sessionTransactions.Data?.Transactions?.Select(t => expenseService.CreateExpense(t, session.Data)) ?? []);
-                continueationKey = sessionTransactions.Data?.ContinuationKey;
-            } while (continueationKey != null);
+                    logger.LogWarning("{Bank}: session {SessionId} does not cover {Iban}. Run `BankSync Connect`.",
+                        bank.Name, session.SessionId, iban);
+                    continue;
+                }
+
+                expenses.AddRange(await GetAccountTransactionsAsync(bank.Name, iban, account.Uid, dateFrom));
+            }
         }
 
+        logger.LogInformation("Enable Banking returned {Count} transaction(s) across {Banks} bank(s)",
+            expenses.Count, _settings.Banks.Count);
 
+        return expenses;
+    }
+
+    private async Task<List<Expense>> GetAccountTransactionsAsync(string bankName, string iban, Guid accountUid, DateTime dateFrom)
+    {
+        var expenses = new List<Expense>();
+        string? continuationKey = null;
+
+        do
+        {
+            var page = await enableAccountService.GetTransactionsAsync(new GetTransactionsRequest
+            {
+                AccountId = accountUid,
+                DateFrom = dateFrom,
+                ContinuationKey = continuationKey
+            }, CancellationToken.None);
+
+            if (page.Error != null)
+            {
+                logger.LogError("{Bank}/{Iban}: could not fetch transactions: {Message}",
+                    bankName, iban, page.Error.Message);
+                break;
+            }
+
+            expenses.AddRange(page.Data?.Transactions?.Select(transaction =>
+                expenseService.CreateExpense(transaction, bankName)) ?? []);
+
+            continuationKey = page.Data?.ContinuationKey;
+        } while (!string.IsNullOrEmpty(continuationKey));
+
+        logger.LogInformation("{Bank}/{Iban}: {Count} transaction(s)", bankName, iban, expenses.Count);
 
         return expenses;
     }
