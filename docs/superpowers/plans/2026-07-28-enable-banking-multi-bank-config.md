@@ -180,8 +180,8 @@ Replace the existing `"EnableBanking"` block (lines 27-30) with:
         "Country": "BE",
         "PsuType": "personal",
         "Ibans": [
-          "BE29650184652964",
-          "BE50650280329118"
+          "BE68539007547034",
+          "BE71096123456769"
         ]
       }
     ]
@@ -226,7 +226,7 @@ Expected: `0 Error(s)`.
 Temporarily add a duplicate IBAN to a second bank entry in `appsettings.json`:
 
 ```json
-      { "Name": "KBC", "Country": "BE", "Ibans": [ "BE29650184652964" ] }
+      { "Name": "KBC", "Country": "BE", "Ibans": [ "BE68539007547034" ] }
 ```
 
 Run:
@@ -236,7 +236,7 @@ dotnet run --project BS.Console -- Connect
 ```
 
 Expected: startup throws `InvalidOperationException` reading
-`IBAN BE29650184652964 is listed under both 'Revolut' and 'KBC'.`
+`IBAN BE68539007547034 is listed under both 'Revolut' and 'KBC'.`
 Then remove that temporary entry and confirm the app starts normally.
 
 `Connect` is not implemented until Task 9, so at this point the run will fall through to the normal sync path after startup. That is expected — this step only proves validation runs.
@@ -1104,7 +1104,7 @@ dotnet run --project BS.Console
 
 Expected:
 - No authorization prompt and no blocking on stdin.
-- Per-account lines `Revolut/BE29650184652964: N transaction(s)` and the KBC equivalent.
+- Per-account lines `Revolut/BE68539007547034: N transaction(s)` and the KBC equivalent.
 - `Enable Banking returned N transaction(s) across 2 bank(s)`.
 - In `Expenses.xlsx`, the `Type` column reads `Revolut` for Revolut rows and `KBC` for KBC rows.
 

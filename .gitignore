@@ -7,3 +7,7 @@ riderModule.iml
 .idea/
 .run/
 .vs/
+# Secrets and per-user IDE files
+*.pem
+*.user
+.env

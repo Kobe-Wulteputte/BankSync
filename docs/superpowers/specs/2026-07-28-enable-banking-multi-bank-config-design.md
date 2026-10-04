@@ -78,7 +78,7 @@ Resulting `appsettings.json` shape:
       "Name": "Revolut",
       "Country": "BE",
       "PsuType": "personal",
-      "Ibans": [ "BE29650184652964", "BE50650280329118" ]
+      "Ibans": [ "BE68539007547034", "BE71096123456769" ]
     }
   ]
 }
