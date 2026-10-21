@@ -69,6 +69,16 @@ public class EnableBankingService(
                 continue;
             }
 
+            // The bank can end a session before access.valid_until; the API still answers 200 then,
+            // only the status shows it (EXPIRED, REVOKED, CLOSED, ...).
+            if (session.Data.Status != null && !string.Equals(session.Data.Status, "AUTHORIZED", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning("Dropping session {SessionId} of {Bank}: status is {Status}",
+                    record.SessionId, record.Bank, session.Data.Status);
+                changed = true;
+                continue;
+            }
+
             if (await FillMetadataAsync(record, session.Data))
             {
                 changed = true;
